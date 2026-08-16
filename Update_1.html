@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#c9614a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kapampangan">
+<title>Kapampangan</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --clay:#c9614a; --clay-light:#e8a090; --cream:#f5f0e8;
+  --ink:#1a1410; --bark:#6b4f3a; --leaf:#4a7c59;
+  --gold:#c8952a; --muted:#9a8878; --card-bg:#fffdf9;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);}
+
+/* Screens */
+#login-screen,#app{position:fixed;inset:0;}
+.screen{position:absolute;inset:0;bottom:60px;overflow-y:auto;display:none;padding:20px 16px 32px;}
+.screen.active{display:block;}
+.overlay{position:fixed;inset:0;background:var(--cream);z-index:100;overflow-y:auto;display:none;}
+.overlay.active{display:block;}
+.hidden{display:none!important;}
+
+/* Bottom nav */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:var(--card-bg);border-top:1px solid #e8e0d4;display:flex;z-index:50;}
+.nav-btn{flex:1;border:none;background:none;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:color 0.2s;}
+.nav-btn.active{color:var(--clay);}
+.nav-icon{font-size:20px;}
+
+/* Login */
+#login-screen{display:flex;align-items:center;justify-content:center;flex-direction:column;padding:40px 24px;text-align:center;}
+.login-emoji{font-size:52px;margin-bottom:16px;}
+.login-logo{font-family:'Playfair Display',serif;font-size:40px;color:var(--clay);font-style:italic;margin-bottom:6px;}
+.login-sub{font-size:14px;color:var(--muted);margin-bottom:48px;line-height:1.65;}
+.btn-google{display:flex;align-items:center;gap:12px;background:white;border:1px solid #e0d8ce;border-radius:14px;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);cursor:pointer;box-shadow:0 2px 8px rgba(26,20,16,0.08);font-weight:500;}
+.btn-google:active{background:#f0ebe0;}
+.g-icon{width:20px;height:20px;}
+#login-msg{font-size:13px;color:var(--muted);margin-top:16px;min-height:20px;}
+
+/* Home */
+.home-greeting{font-family:'Playfair Display',serif;font-size:28px;color:var(--ink);margin-bottom:4px;}
+.home-greeting em{color:var(--clay);font-style:italic;}
+.home-sub{font-size:13px;color:var(--muted);margin-bottom:20px;}
+.progress-summary{background:var(--clay);border-radius:16px;padding:18px 20px;color:white;margin-bottom:24px;}
+.ps-label{font-size:10px;opacity:0.7;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:8px;}
+.ps-nums{font-family:'Playfair Display',serif;font-size:30px;margin-bottom:8px;}
+.ps-nums span{font-size:14px;opacity:0.7;}
+.prog-bar{height:4px;background:rgba(255,255,255,0.3);border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:white;border-radius:2px;transition:width 0.6s;}
+.phase-label{font-size:10px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;margin-top:6px;}
+.lesson-cards{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+.lesson-card{background:var(--card-bg);border-radius:12px;padding:14px 16px;border:1px solid #e8e0d4;display:flex;align-items:center;gap:12px;cursor:pointer;transition:transform 0.15s;box-shadow:0 1px 6px rgba(26,20,16,0.04);}
+.lesson-card:active{transform:scale(0.98);}
+.lesson-card.locked{opacity:0.4;cursor:default;}
+.lesson-card.locked:active,.lesson-card.stub:active{transform:none;}
+.lesson-card.completed{border-left:3px solid var(--leaf);}
+.lesson-card.current{border-left:3px solid var(--clay);}
+.lesson-card.stub{cursor:default;}
+.lesson-num{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:15px;flex-shrink:0;}
+.lesson-card.completed .lesson-num{background:var(--leaf);color:white;}
+.lesson-card.current .lesson-num{background:var(--clay);color:white;}
+.lesson-card.locked .lesson-num,.lesson-card.stub .lesson-num,.lesson-card.available .lesson-num{background:#e8e0d4;color:var(--bark);}
+.lesson-info{flex:1;min-width:0;}
+.lc-title{font-family:'Playfair Display',serif;font-size:15px;}
+.lc-sub{font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lc-badge{font-size:16px;flex-shrink:0;}
+
+/* Overlay */
+.overlay-header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #e8e0d4;background:var(--card-bg);position:sticky;top:0;z-index:10;}
+.btn-back{background:none;border:none;font-size:22px;cursor:pointer;padding:2px 6px;color:var(--ink);}
+.overlay-title{font-family:'Playfair Display',serif;font-size:17px;}
+.lesson-body{padding:18px 16px 40px;}
+
+/* Lesson components */
+.lesson-head{margin-bottom:22px;}
+.lh-title{font-family:'Playfair Display',serif;font-size:28px;line-height:1.2;}
+.lh-title em{color:var(--clay);font-style:italic;}
+.lh-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+.lh-prog{margin-top:12px;}
+.lh-prog-label{font-size:11px;color:var(--muted);margin-bottom:4px;}
+.lh-prog-bar{height:3px;background:#ddd8ce;border-radius:2px;overflow:hidden;}
+.lh-prog-fill{height:100%;background:var(--clay);border-radius:2px;}
+
+.section-tag{display:inline-block;font-size:10px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--clay);border:1px solid var(--clay-light);border-radius:20px;padding:3px 10px;margin-bottom:12px;}
+.l-card{background:var(--card-bg);border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid #e8e0d4;box-shadow:0 1px 6px rgba(26,20,16,0.04);}
+.l-card-title{font-family:'Playfair Display',serif;font-size:17px;margin-bottom:5px;}
+.l-card-body{font-size:13px;line-height:1.7;color:#4a3f35;}
+.l-card-body strong{color:var(--ink);font-weight:500;}
+
+.vowel-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:12px;}
+.vowel-box{background:var(--cream);border-radius:8px;padding:7px 4px;text-align:center;border:1px solid #e0d8ce;}
+.vl{font-family:'Playfair Display',serif;font-size:20px;color:var(--clay);display:block;}
+.vh{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.3;display:block;}
+
+.phrase-list{display:flex;flex-direction:column;gap:7px;margin-top:8px;}
+.phrase-item{padding:11px 13px;background:var(--cream);border-radius:10px;border-left:3px solid var(--clay-light);cursor:pointer;transition:all 0.2s;}
+.phrase-item.revealed{border-left-color:var(--leaf);background:#f0ebe0;}
+.pi-kamp{font-family:'Playfair Display',serif;font-size:16px;}
+.pi-pronun{font-size:11px;color:var(--muted);font-style:italic;}
+.pi-eng{font-size:13px;color:var(--leaf);font-weight:500;margin-top:3px;display:none;}
+.pi-note{font-size:11px;color:var(--muted);margin-top:2px;display:none;}
+.phrase-item.revealed .pi-eng,.phrase-item.revealed .pi-note{display:block;}
+.tap-hint{font-size:11px;color:var(--muted);text-align:center;margin:6px 0 2px;}
+
+.insight-box{background:linear-gradient(135deg,#fff8ed,#fff3e0);border:1px solid var(--gold);border-radius:12px;padding:15px;margin-bottom:14px;}
+.ib-icon{font-size:18px;margin-bottom:5px;}
+.ib-title{font-family:'Playfair Display',serif;font-size:15px;color:var(--bark);margin-bottom:4px;}
+.ib-body{font-size:13px;line-height:1.7;color:#5a4535;}
+
+.fc-wrap{perspective:1000px;}
+.flashcard{width:100%;height:145px;position:relative;transform-style:preserve-3d;transition:transform 0.45s;cursor:pointer;}
+.flashcard.flipped{transform:rotateY(180deg);}
+.fc-face{position:absolute;inset:0;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;backface-visibility:hidden;-webkit-backface-visibility:hidden;padding:14px;text-align:center;}
+.fc-front{background:var(--clay);color:white;}
+.fc-back{background:var(--leaf);color:white;transform:rotateY(180deg);}
+.fc-label{font-size:9px;letter-spacing:0.2em;text-transform:uppercase;opacity:0.7;margin-bottom:7px;}
+.fc-word{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:3px;}
+.fc-sub{font-size:12px;opacity:0.85;}
+.fc-nav{display:flex;align-items:center;justify-content:space-between;margin-top:12px;}
+.btn-fc{background:var(--ink);color:var(--cream);border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;}
+.btn-fc:disabled{opacity:0.3;cursor:default;}
+.fc-counter{font-size:12px;color:var(--muted);}
+
+.dialogue-wrap{display:flex;flex-direction:column;gap:8px;}
+.d-line{display:flex;gap:8px;align-items:flex-start;}
+.d-line.you{flex-direction:row-reverse;}
+.d-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:2px;}
+.d-line:not(.you) .d-avatar{background:var(--clay-light);}
+.d-line.you .d-avatar{background:var(--leaf);}
+.d-bubble{background:white;border:1px solid #e0d8ce;border-radius:12px;padding:8px 11px;max-width:82%;}
+.d-line.you .d-bubble{background:var(--ink);color:white;border-color:var(--ink);}
+.d-kamp{font-family:'Playfair Display',serif;font-size:14px;margin-bottom:1px;}
+.d-eng{font-size:11px;opacity:0.6;}
+
+.note-box{background:#f0f7f3;border:1px solid #c5dece;border-radius:10px;padding:11px 13px;font-size:13px;color:#2e5c3e;line-height:1.6;margin-top:10px;}
+
+.btn-done{display:block;width:100%;background:var(--clay);color:white;border:none;border-radius:12px;padding:14px;font-family:'Playfair Display',serif;font-size:16px;cursor:pointer;margin-top:18px;transition:background 0.2s;}
+.btn-done.done{background:var(--leaf);}
+.footer-note{text-align:center;font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;}
+
+/* Family tree */
+.ft-grid{display:flex;flex-direction:column;gap:7px;margin-top:12px;}
+.ft-row{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;}
+.ft-person{background:var(--cream);border:1px solid #e0d8ce;border-radius:9px;padding:7px 9px;text-align:center;min-width:78px;cursor:pointer;transition:all 0.2s;}
+.ft-person.hi,.ft-person:active{background:var(--clay);border-color:var(--clay);}
+.ft-person.hi .ft-k,.ft-person:active .ft-k{color:white;}
+.ft-person.hi .ft-r,.ft-person:active .ft-r{color:rgba(255,255,255,0.75);}
+.ft-k{font-family:'Playfair Display',serif;font-size:13px;color:var(--ink);display:block;}
+.ft-r{font-size:10px;color:var(--muted);display:block;margin-top:1px;}
+.ft-conn{text-align:center;color:#ccc;font-size:14px;}
+
+.poss-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
+.poss-table th{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);text-align:left;padding-bottom:6px;}
+.poss-table td{padding:7px 0;border-top:1px solid #ede7dc;vertical-align:top;}
+.poss-table td:first-child{font-family:'Playfair Display',serif;font-size:14px;color:var(--clay);padding-right:10px;}
+.poss-table td:nth-child(2){color:var(--leaf);font-size:12px;font-weight:500;padding-right:10px;}
+.poss-table td:nth-child(3){color:var(--muted);font-size:11px;}
+
+/* Practice */
+.practice-header{margin-bottom:18px;}
+.practice-title{font-family:'Playfair Display',serif;font-size:26px;}
+.practice-title em{color:var(--clay);font-style:italic;}
+.practice-sub{font-size:13px;color:var(--muted);margin-top:3px;}
+.practice-empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;line-height:1.7;}
+.practice-empty strong{color:var(--ink);display:block;font-family:'Playfair Display',serif;font-size:20px;margin-bottom:8px;}
+
+/* Phrasebook */
+.pb-search{width:100%;background:var(--card-bg);border:1px solid #e8e0d4;border-radius:12px;padding:11px 15px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);margin-bottom:14px;outline:none;}
+.pb-search:focus{border-color:var(--clay-light);}
+.pb-group{margin-bottom:20px;}
+.pb-group-title{font-family:'Playfair Display',serif;font-size:15px;color:var(--bark);margin-bottom:6px;}
+.pb-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #ede7dc;}
+.pb-kamp{font-family:'Playfair Display',serif;font-size:15px;}
+.pb-right{text-align:right;}
+.pb-eng{font-size:13px;color:var(--leaf);}
+.pb-pronun{font-size:11px;color:var(--muted);font-style:italic;}
+.pb-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-emoji">🤱</div>
+  <div class="login-logo">Kapampangan</div>
+  <div class="login-sub">A language course built for your family.<br>Learn slowly. Learn for keeps.</div>
+  <button class="btn-google" id="btn-login">
+    <svg class="g-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Sign in with Google
+  </button>
+  <div id="login-msg"></div>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <div id="screen-home" class="screen active"><div id="home-content"></div></div>
+  <div id="screen-practice" class="screen"><div id="practice-content"></div></div>
+  <div id="screen-phrasebook" class="screen">
+    <div>
+      <div class="home-greeting" style="font-size:24px;margin-bottom:2px">Quick <em>Reference</em></div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px">All vocabulary from completed lessons</div>
+      <input class="pb-search" id="pb-search" type="search" placeholder="Search words...">
+      <div id="phrasebook-content"></div>
+    </div>
+  </div>
+
+  <!-- Lesson overlay -->
+  <div id="lesson-overlay" class="overlay">
+    <div class="overlay-header">
+      <button class="btn-back" id="btn-close-lesson">←</button>
+      <span class="overlay-title" id="overlay-title"></span>
+    </div>
+    <div class="lesson-body" id="lesson-body"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="home"><span class="nav-icon">📚</span>Lessons</button>
+    <button class="nav-btn" data-tab="practice"><span class="nav-icon">🃏</span>Practice</button>
+    <button class="nav-btn" data-tab="phrasebook"><span class="nav-icon">📖</span>Phrasebook</button>
+  </nav>
+</div>
+
+<script>
+// ================================================================
+// FIREBASE CONFIG
+// Paste your Firebase config object here (replace ALL fields below)
+// ================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDlukf4f6AZiz9FwK9gJjlCq0nw7BbSprE",
+  authDomain: "kapampangan-learning-9564b.firebaseapp.com",
+  databaseURL: "https://kapampangan-learning-9564b-default-rtdb.firebaseio.com",
+  projectId: "kapampangan-learning-9564b",
+  storageBucket: "kapampangan-learning-9564b.firebasestorage.app",
+  messagingSenderId: "1095300427644",
+  appId: "1:1095300427644:web:afa10b375c21632f7c3ef9"
+};
+// ================================================================
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+// ================================================================
+// LESSON DATA
+// ================================================================
+const LESSONS = [
+  {
+    id:1, phase:1, title:"Saying Hello",
+    subtitle:"Greetings, yes & no, and getting someone's attention",
+    type:"standard",
+    showVowels:true,
+    vocab:[
+      {kamp:"Wa",pronun:"wah",eng:"Yes"},
+      {kamp:"Ali",pronun:"ah-lee",eng:"No"},
+      {kamp:"Opu",pronun:"oh-poo",eng:"Yes (to an elder)"},
+      {kamp:"Ali pu",pronun:"ah-lee poo",eng:"No (to an elder)"},
+      {kamp:"Mekeni",pronun:"meh-KEH-nee",eng:"Come here"},
+      {kamp:"Mangan ta na",pronun:"mah-NGAN tah nah",eng:"Let's eat"},
+      {kamp:"Kaluguran da ka",pronun:"kah-loo-GOO-ran dah kah",eng:"I love you"},
+      {kamp:"Mimingat ka",pronun:"mee-MEE-ngat kah",eng:"Be careful"},
+      {kamp:"Bilisan mu",pronun:"bee-LEE-san moo",eng:"Hurry up"},
+      {kamp:"Patugut ka",pronun:"pah-TOO-gut kah",eng:"Stop it"},
+    ],
+    insight:{icon:"💡",title:'You don\'t need to say "I"',body:'In Kapampangan, the speaker ("I") is implied unless you need to clarify. "Kaluguran da ka" is a complete sentence — the "I" is simply understood from context. This makes sentences shorter and easier once you get used to it.'},
+    dialogue:[
+      {speaker:"wife",kamp:"Mangan ta na!",eng:"Let's eat!"},
+      {speaker:"you",kamp:"Wa!",eng:"Yes!"},
+      {speaker:"wife",kamp:"Bilisan mu!",eng:"Hurry up!"},
+      {speaker:"you",kamp:"Wa, wa!",eng:"Yes, yes!"},
+      {speaker:"you",kamp:"Kaluguran da ka.",eng:"I love you."},
+      {speaker:"wife",kamp:"Kaluguran da ka naman! 😊",eng:"I love you too!"},
+    ]
+  },
+  {
+    id:2, phase:1, title:"Family",
+    subtitle:"Talking about and introducing the people in your life",
+    type:"family",
+    vocab:[
+      {kamp:"Ima",pronun:"EE-mah",eng:"Mother"},
+      {kamp:"Tatang",pronun:"tah-TANG",eng:"Father"},
+      {kamp:"Asawa",pronun:"ah-SAH-wah",eng:"Husband / Wife"},
+      {kamp:"Anak",pronun:"ah-NAK",eng:"Child / Son / Daughter"},
+      {kamp:"Lola",pronun:"LOH-lah",eng:"Grandmother"},
+      {kamp:"Lolo / Apu",pronun:"LOH-loh / AH-poo",eng:"Grandfather"},
+      {kamp:"Koya",pronun:"KOH-yah",eng:"Older brother"},
+      {kamp:"Atchi",pronun:"AHT-chee",eng:"Older sister"},
+      {kamp:"Wali",pronun:"WAH-lee",eng:"Younger sibling"},
+      {kamp:"Pisan",pronun:"pee-SAN",eng:"Cousin"},
+      {kamp:"Bapa",pronun:"BAH-pah",eng:"Uncle"},
+      {kamp:"Dara",pronun:"DAH-rah",eng:"Aunt"},
+      {kamp:"Paunakan",pronun:"pah-oo-NAH-kan",eng:"Niece / Nephew"},
+      {kamp:"Anak kung babai",pronun:"ah-NAK koong bah-BAH-ee",eng:"Daughter (my female child)"},
+      {kamp:"Anak kung lalaki",pronun:"ah-NAK koong lah-LAH-kee",eng:"Son (my male child)"},
+    ],
+    phrases:[
+      {kamp:"Ini ing asawa ku",pronun:"EE-nee ing ah-SAH-wah koo",eng:"This is my wife/husband",note:"Use when introducing someone beside you"},
+      {kamp:"Ya ing asawa ku",pronun:"yah ing ah-SAH-wah koo",eng:"She/he is my wife/husband",note:"Use when pointing someone out"},
+      {kamp:"Ini ing ima ku",pronun:"EE-nee ing EE-mah koo",eng:"This is my mother",note:""},
+      {kamp:"Ini ing tatang ku",pronun:"EE-nee ing tah-TANG koo",eng:"This is my father",note:""},
+      {kamp:"Anak ke",pronun:"ah-NAK keh",eng:"She's / He's my child",note:""},
+      {kamp:"Anak kung babai",pronun:"ah-NAK koong bah-BAH-ee",eng:"My daughter",note:"You'll be saying this a lot very soon"},
+    ],
+    insight:{icon:"💡",title:'No "he" or "she" in Kapampangan',body:'Kapampangan has no separate pronouns for he and she — gender is understood from context. To specify gender, add babai (female) or lalaki (male) after anak. You\'ll be using these a lot very soon.'},
+    dialogue:[
+      {speaker:"wife",kamp:"Ini ing tatang ku.",eng:"This is my father."},
+      {speaker:"you",kamp:"Opu.",eng:"Yes. (respectful 
