@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#c9614a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Kapampangan">
+<title>Kapampangan</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+
+:root{--clay:#c9614a;--clay-light:#e8a090;--cream:#f5f0e8;--ink:#1a1410;--bark:#6b4f3a;--leaf:#4a7c59;--gold:#c8952a;--muted:#9a8878;--card-bg:#fffdf9;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);}
+#login-screen,#app{position:fixed;inset:0;}
+.screen{position:absolute;inset:0;bottom:60px;overflow-y:auto;display:none;padding:20px 16px 32px;}
+.screen.active{display:block;}
+.overlay{position:fixed;inset:0;background:var(--cream);z-index:100;overflow-y:auto;display:none;}
+.overlay.active{display:block;}
+.hidden{display:none!important;}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:60px;background:var(--card-bg);border-top:1px solid #e8e0d4;display:flex;z-index:50;}
+.nav-btn{flex:1;border:none;background:none;font-family:'DM Sans',sans-serif;font-size:11px;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:color 0.2s;}
+.nav-btn.active{color:var(--clay);}
+.nav-icon{font-size:20px;}
+#login-screen{display:flex;align-items:center;justify-content:center;flex-direction:column;padding:40px 24px;text-align:center;}
+.login-emoji{font-size:52px;margin-bottom:16px;}
+.login-logo{font-family:'Playfair Display',serif;font-size:40px;color:var(--clay);font-style:italic;margin-bottom:6px;}
+.login-sub{font-size:14px;color:var(--muted);margin-bottom:48px;line-height:1.65;}
+.btn-google{display:flex;align-items:center;gap:12px;background:white;border:1px solid #e0d8ce;border-radius:14px;padding:14px 28px;font-family:'DM Sans',sans-serif;font-size:15px;color:var(--ink);cursor:pointer;box-shadow:0 2px 8px rgba(26,20,16,0.08);font-weight:500;}
+.btn-google:active{background:#f0ebe0;}
+.g-icon{width:20px;height:20px;}
+#login-msg{font-size:13px;color:var(--muted);margin-top:16px;min-height:20px;}
+.home-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;}
+.home-greeting{font-family:'Playfair Display',serif;font-size:26px;color:var(--ink);margin-bottom:2px;}
+.home-greeting em{color:var(--clay);font-style:italic;}
+.home-sub{font-size:13px;color:var(--muted);}
+.btn-signout{background:none;border:1px solid #e8e0d4;border-radius:20px;padding:6px 12px;font-size:12px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0;margin-top:4px;}
+.progress-summary{background:var(--clay);border-radius:16px;padding:18px 20px;color:white;margin-bottom:24px;}
+.ps-label{font-size:10px;opacity:0.7;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:8px;}
+.ps-nums{font-family:'Playfair Display',serif;font-size:30px;margin-bottom:8px;}
+.ps-nums span{font-size:14px;opacity:0.7;}
+.prog-bar{height:4px;background:rgba(255,255,255,0.3);border-radius:2px;overflow:hidden;}
+.prog-fill{height:100%;background:white;border-radius:2px;transition:width 0.6s;}
+.phase-label{font-size:10px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;margin-top:6px;}
+.lesson-cards{display:flex;flex-direction:column;gap:8px;margin-bottom:18px;}
+.lesson-card{background:var(--card-bg);border-radius:12px;padding:14px 16px;border:1px solid #e8e0d4;display:flex;align-items:center;gap:12px;cursor:pointer;transition:transform 0.15s;box-shadow:0 1px 6px rgba(26,20,16,0.04);}
+.lesson-card:active{transform:scale(0.98);}
+.lesson-card.locked{opacity:0.4;cursor:default;}
+.lesson-card.locked:active{transform:none;}
+.lesson-card.completed{border-left:3px solid var(--leaf);}
+.lesson-card.current{border-left:3px solid var(--clay);}
+.lesson-num{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:15px;flex-shrink:0;}
+.lesson-card.completed .lesson-num{background:var(--leaf);color:white;}
+.lesson-card.current .lesson-num{background:var(--clay);color:white;}
+.lesson-card.locked .lesson-num,.lesson-card.available .lesson-num{background:#e8e0d4;color:var(--bark);}
+.lesson-info{flex:1;min-width:0;}
+.lc-title{font-family:'Playfair Display',serif;font-size:15px;}
+.lc-sub{font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lc-badge{font-size:16px;flex-shrink:0;}
+.overlay-header{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid #e8e0d4;background:var(--card-bg);position:sticky;top:0;z-index:10;}
+.btn-back{background:none;border:none;font-size:22px;cursor:pointer;padding:2px 6px;color:var(--ink);}
+.overlay-title{font-family:'Playfair Display',serif;font-size:17px;}
+.lesson-body{padding:18px 16px 40px;}
+.lesson-head{margin-bottom:22px;}
+.lh-title{font-family:'Playfair Display',serif;font-size:28px;line-height:1.2;}
+.lh-title em{color:var(--clay);font-style:italic;}
+.lh-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+.lh-prog{margin-top:12px;}
+.lh-prog-label{font-size:11px;color:var(--muted);margin-bottom:4px;}
+.lh-prog-bar{height:3px;background:#ddd8ce;border-radius:2px;overflow:hidden;}
+.lh-prog-fill{height:100%;background:var(--clay);border-radius:2px;}
+.section-tag{display:inline-block;font-size:10px;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--clay);border:1px solid var(--clay-light);border-radius:20px;padding:3px 10px;margin-bottom:12px;}
+.l-card{background:var(--card-bg);border-radius:14px;padding:16px;margin-bottom:14px;border:1px solid #e8e0d4;box-shadow:0 1px 6px rgba(26,20,16,0.04);}
+.l-card-title{font-family:'Playfair Display',serif;font-size:17px;margin-bottom:5px;}
+.l-card-body{font-size:13px;line-height:1.7;color:#4a3f35;}
+.l-card-body strong{color:var(--ink);font-weight:500;}
+.vowel-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:12px;}
+.vowel-box{background:var(--cream);border-radius:8px;padding:7px 4px;text-align:center;border:1px solid #e0d8ce;}
+.vl{font-family:'Playfair Display',serif;font-size:20px;color:var(--clay);display:block;}
+.vh{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.3;display:block;}
+.phrase-list{display:flex;flex-direction:column;gap:7px;margin-top:8px;}
+.phrase-item{padding:11px 13px;background:var(--cream);border-radius:10px;border-left:3px solid var(--clay-light);cursor:pointer;transition:all 0.2s;}
+.phrase-item.revealed{border-left-color:var(--leaf);background:#f0ebe0;}
+.phrase-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.phrase-top-left{flex:1;min-width:0;}
+.pi-kamp{font-family:'Playfair Display',serif;font-size:16px;}
+.pi-pronun{font-size:11px;color:var(--muted);font-style:italic;}
+.pi-eng{font-size:13px;color:var(--leaf);font-weight:500;margin-top:3px;display:none;}
+.pi-note{font-size:11px;color:var(--muted);margin-top:2px;display:none;}
+.phrase-item.revealed .pi-eng,.phrase-item.revealed .pi-note{display:block;}
+.tap-hint{font-size:11px;color:var(--muted);text-align:center;margin:6px 0 2px;}
+.btn-play-phrase{background:none;border:1px solid var(--clay-light);border-radius:20px;padding:4px 10px;font-size:11px;color:var(--clay);cursor:pointer;white-space:nowrap;flex-shrink:0;margin-top:2px;}
+.insight-box{background:linear-gradient(135deg,#fff8ed,#fff3e0);border:1px solid var(--gold);border-radius:12px;padding:15px;margin-bottom:14px;}
+.ib-icon{font-size:18px;margin-bottom:5px;}
+.ib-title{font-family:'Playfair Display',serif;font-size:15px;color:var(--bark);margin-bottom:4px;}
+.ib-body{font-size:13px;line-height:1.7;color:#5a4535;}
+.fc-wrap{perspective:1000px;}
+.flashcard{width:100%;height:145px;position:relative;transform-style:preserve-3d;transition:transform 0.45s;cursor:pointer;}
+.flashcard.flipped{transform:rotateY(180deg);}
+.fc-face{position:absolute;inset:0;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;backface-visibility:hidden;-webkit-backface-visibility:hidden;padding:14px;text-align:center;}
+.fc-front{background:var(--clay);color:white;}
+.fc-back{background:var(--leaf);color:white;transform:rotateY(180deg);}
+.fc-label{font-size:9px;letter-spacing:0.2em;text-transform:uppercase;opacity:0.7;margin-bottom:7px;}
+.fc-word{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:3px;}
+.fc-sub{font-size:12px;opacity:0.85;}
+.fc-nav{display:flex;align-items:center;justify-content:space-between;margin-top:12px;}
+.btn-fc{background:var(--ink);color:var(--cream);border:none;border-radius:8px;padding:8px 16px;font-family:'DM Sans',sans-serif;font-size:13px;cursor:pointer;}
+.btn-fc:disabled{opacity:0.3;cursor:default;}
+.fc-counter{font-size:12px;color:var(--muted);}
+.dialogue-wrap{display:flex;flex-direction:column;gap:8px;}
+.d-line{display:flex;gap:8px;align-items:flex-start;}
+.d-line.you{flex-direction:row-reverse;}
+.d-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:2px;}
+.d-line:not(.you) .d-avatar{background:var(--clay-light);}
+.d-line.you .d-avatar{background:var(--leaf);}
+.d-bubble{background:white;border:1px solid #e0d8ce;border-radius:12px;padding:8px 11px;max-width:82%;}
+.d-line.you .d-bubble{background:var(--ink);color:white;border-color:var(--ink);}
+.d-kamp{font-family:'Playfair Display',serif;font-size:14px;margin-bottom:1px;}
+.d-eng{font-size:11px;opacity:0.6;}
+.note-box{background:#f0f7f3;border:1px solid #c5dece;border-radius:10px;padding:11px 13px;font-size:13px;color:#2e5c3e;line-height:1.6;margin-top:10px;}
+.btn-done{display:block;width:100%;background:var(--clay);color:white;border:none;border-radius:12px;padding:14px;font-family:'Playfair Display',serif;font-size:16px;cursor:pointer;margin-top:18px;transition:background 0.2s;}
+.btn-done.done{background:var(--leaf);}
+.footer-note{text-align:center;font-size:12px;color:var(--muted);margin-top:10px;line-height:1.6;}
+.ft-grid{display:flex;flex-direction:column;gap:7px;margin-top:12px;}
+.ft-row{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;}
+.ft-person{background:var(--cream);border:1px solid #e0d8ce;border-radius:9px;padding:7px 9px;text-align:center;min-width:78px;cursor:pointer;transition:all 0.2s;}
+.ft-person.hi,.ft-person:active{background:var(--clay);border-color:var(--clay);}
+.ft-person.hi .ft-k,.ft-person:active .ft-k{color:white;}
+.ft-person.hi .ft-r,.ft-person:active .ft-r{color:rgba(255,255,255,0.75);}
+.ft-k{font-family:'Playfair Display',serif;font-size:13px;color:var(--ink);display:block;}
+.ft-r{font-size:10px;color:var(--muted);display:block;margin-top:1px;}
+.ft-conn{text-align:center;color:#ccc;font-size:14px;}
+.poss-table{width:100%;border-collapse:collapse;font-size:13px;margin-top:12px;}
+.poss-table th{font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);text-align:left;padding-bottom:6px;}
+.poss-table td{padding:7px 0;border-top:1px solid #ede7dc;vertical-align:top;}
+.poss-table td:first-child{font-family:'Playfair Display',serif;font-size:14px;color:var(--clay);padding-right:10px;}
+.poss-table td:nth-child(2){color:var(--leaf);font-size:12px;font-weight:500;padding-right:10px;}
+.poss-table td:nth-child(3){color:var(--muted);font-size:11px;}
+.practice-header{margin-bottom:18px;}
+.practice-title{font-family:'Playfair Display',serif;font-size:26px;}
+.practice-title em{color:var(--clay);font-style:italic;}
+.practice-sub{font-size:13px;color:var(--muted);margin-top:3px;}
+.practice-empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;line-height:1.7;}
+.practice-empty strong{color:var(--ink);display:block;font-family:'Playfair Display',serif;font-size:20px;margin-bottom:8px;}
+.pb-search{width:100%;background:var(--card-bg);border:1px solid #e8e0d4;border-radius:12px;padding:11px 15px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);margin-bottom:14px;outline:none;}
+.pb-search:focus{border-color:var(--clay-light);}
+.pb-group{margin-bottom:20px;}
+.pb-group-title{font-family:'Playfair Display',serif;font-size:15px;color:var(--bark);margin-bottom:6px;}
+.pb-item{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #ede7dc;}
+.pb-kamp{font-family:'Playfair Display',serif;font-size:15px;}
+.pb-right{text-align:right;}
+.pb-eng{font-size:13px;color:var(--leaf);}
+.pb-pronun{font-size:11px;color:var(--muted);font-style:italic;}
+.pb-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px;}
+.admin-body{padding:16px 16px 40px;}
+.admin-lesson-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;}
+.al-btn{background:var(--cream);border:1px solid #e0d8ce;border-radius:8px;padding:7px 11px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--ink);transition:all 0.15s;}
+.al-btn.active{background:var(--clay);border-color:var(--clay);color:white;}
+.admin-section{margin-bottom:24px;}
+.admin-sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.admin-sec-title{font-family:'Playfair Display',serif;font-size:17px;}
+.btn-add{background:var(--leaf);color:white;border:none;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.admin-item{background:var(--card-bg);border:1px solid #e8e0d4;border-radius:10px;padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;gap:8px;}
+.admin-item-body{flex:1;min-width:0;}
+.ai-kamp{font-family:'Playfair Display',serif;font-size:14px;}
+.ai-sub{font-size:11px;color:var(--muted);margin-top:1px;}
+.admin-item-btns{display:flex;gap:5px;flex-shrink:0;}
+.btn-ai-edit,.btn-ai-del{border:none;border-radius:6px;padding:6px 9px;font-size:13px;cursor:pointer;}
+.btn-ai-edit{background:#e8e0d4;color:var(--ink);}
+.btn-ai-del{background:#fde8e4;color:var(--clay);}
+.btn-mic{border:none;border-radius:6px;padding:6px 9px;font-size:13px;cursor:pointer;background:#e8f0fe;color:#1a73e8;}
+.btn-mic.has-audio{background:#e8f5e9;color:var(--leaf);}
+.admin-insight-box{background:var(--card-bg);border:1px solid #e8e0d4;border-radius:10px;padding:14px;margin-top:4px;}
+.admin-insight-text{font-size:13px;color:#4a3f35;line-height:1.6;margin-bottom:10px;}
+.btn-edit-insight{background:#e8e0d4;color:var(--ink);border:none;border-radius:8px;padding:7px 14px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.modal-backdrop{position:fixed;inset:0;background:rgba(26,20,16,0.55);z-index:300;display:flex;align-items:flex-end;}
+.modal{background:var(--card-bg);border-radius:20px 20px 0 0;padding:22px 20px 44px;width:100%;max-height:90vh;overflow-y:auto;}
+.modal-title{font-family:'Playfair Display',serif;font-size:19px;margin-bottom:16px;}
+.modal-field{margin-bottom:12px;}
+.modal-label{font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:4px;display:block;}
+.modal-input{width:100%;border:1px solid #e8e0d4;border-radius:8px;padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:white;outline:none;}
+.modal-input:focus{border-color:var(--clay-light);}
+.modal-textarea{width:100%;border:1px solid #e8e0d4;border-radius:8px;padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:white;outline:none;resize:vertical;min-height:80px;line-height:1.5;}
+.modal-textarea:focus{border-color:var(--clay-light);}
+.speaker-row{display:flex;gap:6px;}
+.sp-opt{border:1px solid #e0d8ce;background:var(--cream);border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.15s;}
+.sp-opt.active{background:var(--clay);border-color:var(--clay);color:white;}
+.modal-actions{display:flex;gap:8px;margin-top:16px;}
+.btn-modal-save{flex:1;background:var(--clay);color:white;border:none;border-radius:10px;padding:13px;font-family:'Playfair Display',serif;font-size:15px;cursor:pointer;}
+.btn-modal-cancel{background:#e8e0d4;color:var(--ink);border:none;border-radius:10px;padding:13px 18px;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;}
+.rec-overlay-inner{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100%;padding:40px 24px;text-align:center;background:var(--ink);}
+.rec-lbl{font-size:10px;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.18em;margin-bottom:14px;}
+.rec-word{font-family:'Playfair Display',serif;font-size:30px;color:white;margin-bottom:4px;}
+.rec-eng{font-size:14px;color:rgba(255,255,255,0.55);margin-bottom:32px;}
+.rec-circle{width:84px;height:84px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 14px;background:var(--clay);}
+.rec-circle.pulsing{background:#e53935;animation:recpulse 1s infinite;}
+@keyframes recpulse{0%{box-shadow:0 0 0 0 rgba(229,57,53,0.5);}70%{box-shadow:0 0 0 18px rgba(229,57,53,0);}100%{box-shadow:0 0 0 0 rgba(229,57,53,0);}}
+.rec-status{font-size:14px;color:rgba(255,255,255,0.6);margin-bottom:24px;min-height:22px;}
+.rec-audio{width:100%;margin:12px 0;}
+.rec-btns{display:flex;gap:10px;width:100%;}
+.btn-rec{flex:1;border:none;border-radius:12px;padding:14px;font-size:15px;cursor:pointer;}
+.btn-rec-save{background:var(--leaf);color:white;font-family:'Playfair Display',serif;}
+.btn-rec-cancel{background:rgba(255,255,255,0.12);color:white;font-family:'DM Sans',sans-serif;}
+.btn-rec-del{background:rgba(229,57,53,0.2);color:#f48c8c;font-family:'DM Sans',sans-serif;font-size:13px;margin-top:8px;width:100%;border:none;border-radius:12px;padding:12px;cursor:pointer;}
+
+</style>
+</head>
+<body>
+<div id="login-screen">
+  <div class="login-emoji">&#129330;</div>
+  <div class="login-logo">Kapampangan</div>
+  <div class="login-sub">Learn a living language.<br>One lesson at a time.</div>
+  <button class="btn-google" id="btn-login">
+    <svg class="g-icon" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+    Sign in with Google
+  </button>
+  <div id="login-msg"></div>
+</div>
+<div id="app" class="hidden">
+  <div id="screen-home" class="screen active"><div id="home-content"></div></div>
+  <div id="screen-practice" class="screen"><div id="practice-content"></div></div>
+  <div id="screen-phrasebook" class="screen"><div>
+    <div class="home-greeting" style="font-size:24px;margin-bottom:2px">Quick <em>Reference</em></div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px">All vocabulary from completed lessons</div>
+    <input class="pb-search" id="pb-search" type="search" placeholder="Search words...">
+    <div id="phrasebook-content"></div>
+  </div></div>
+  <div id="lesson-overlay" class="overlay">
+    <div class="overlay-header"><button class="btn-back" id="btn-close-lesson">&#8592;</button><span class="overlay-title" id="overlay-title"></span></div>
+    <div class="lesson-body" id="lesson-body"></div>
+  </div>
+  <div id="admin-overlay" class="overlay">
+    <div class="overlay-header"><button class="btn-back" onclick="closeAdmin()">&#8592;</button><span class="overlay-title">Admin Panel</span></div>
+    <div class="admin-body" id="admin-body"></div>
+  </div>
+  <div id="screen-recorder" class="screen"><div id="recorder-content"></div></div>
+  <div id="rec-overlay" class="overlay" style="z-index:200;">
+    <div class="rec-overlay-inner"><div id="rec-content"></div></div>
+  </div>
+  <div id="edit-modal" class="modal-backdrop hidden">
+    <div class="modal"><div class="modal-title" id="modal-title">Edit</div><div id="modal-fields"></div>
+    <div class="modal-actions"><button class="btn-modal-cancel" onclick="closeModal()">Cancel</button><button class="btn-modal-save" onclick="saveModal()">Save</button></div></div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="home"><span class="nav-icon">&#128218;</span>Lessons</button>
+    <button class="nav-btn" data-tab="practice"><span class="nav-icon">&#127183;</span>Practice</button>
+    <button class="nav-btn" data-tab="phrasebook"><span class="nav-icon">&#128214;</span>Phrasebook</button>
+    <button class="nav-btn hidden" id="rec-nav-btn" data-tab="recorder"><span class="nav-icon">&#127908;</span>Record</button>
+    <button class="nav-btn hidden" id="admin-nav-btn" onclick="openAdmin()"><span class="nav-icon">&#9881;&#65039;</span>Admin</button>
+  </nav>
+</div>
+<script>
+
+const ADMIN_EMAILS=['YOUR_EMAIL@gmail.com'];
+const firebaseConfig={apiKey:"AIzaSyDlukf4f6AZiz9FwK9gJjlCq0nw7BbSprE",authDomain:"kapampangan-learning-9564b.firebaseapp.com",databaseURL:"https://kapampangan-learning-9564b-default-rtdb.firebaseio.com",projectId:"kapampangan-learning-9564b",storageBucket:"kapampangan-learning-9564b.firebasestorage.app",messagingSenderId:"1095300427644",appId:"1:1095300427644:web:afa10b375c21632f7c3ef9"};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(),db=firebase.database();
+const LESSONS_DEFAULT=[{"id": 1, "phase": 1, "title": "Saying Hello", "subtitle": "Greetings, yes & no, and getting someone's attention", "type": "standard", "showVowels": true, "vocab": [{"kamp": "Wa", "pronun": "wah", "eng": "Yes"}, {"kamp": "Ali", "pronun": "ah-lee", "eng": "No"}, {"kamp": "Opu", "pronun": "oh-poo", "eng": "Yes (to an elder)"}, {"kamp": "Ali pu", "pronun": "ah-lee poo", "eng": "No (to an elder)"}, {"kamp": "Mekeni", "pronun": "meh-KEH-nee", "eng": "Come here"}, {"kamp": "Mangan ta na", "pronun": "mah-NGAN tah nah", "eng": "Let us eat"}, {"kamp": "Kaluguran da ka", "pronun": "kah-loo-GOO-ran dah kah", "eng": "I love you"}, {"kamp": "Mimingat ka", "pronun": "mee-MEE-ngat kah", "eng": "Be careful"}, {"kamp": "Bilisan mu", "pronun": "bee-LEE-san moo", "eng": "Hurry up"}, {"kamp": "Patugut ka", "pronun": "pah-TOO-gut kah", "eng": "Stop it"}], "insight": {"icon": "&#128161;", "title": "You don't need to say I", "body": "In Kapampangan, the speaker is implied unless you need to clarify. Kaluguran da ka is a complete sentence. The I is simply understood from context. This makes sentences shorter and easier once you get used to it."}, "dialogue": [{"speaker": "other", "kamp": "Mangan ta na!", "eng": "Let us eat!"}, {"speaker": "you", "kamp": "Wa!", "eng": "Yes!"}, {"speaker": "other", "kamp": "Bilisan mu!", "eng": "Hurry up!"}, {"speaker": "you", "kamp": "Wa, wa!", "eng": "Yes, yes!"}, {"speaker": "you", "kamp": "Kaluguran da ka.", "eng": "I love you."}, {"speaker": "other", "kamp": "Kaluguran da ka naman!", "eng": "I love you too!"}]}, {"id": 2, "phase": 1, "title": "Family", "subtitle": "Talking about and introducing the people in your life", "type": "family", "vocab": [{"kamp": "Ima", "pronun": "EE-mah", "eng": "Mother"}, {"kamp": "Tatang", "pronun": "tah-TANG", "eng": "Father"}, {"kamp": "Asawa", "pronun": "ah-SAH-wah", "eng": "Husband / Wife"}, {"kamp": "Anak", "pronun": "ah-NAK", "eng": "Child / Son / Daughter"}, {"kamp": "Lola", "pronun": "LOH-lah", "eng": "Grandmother"}, {"kamp": "Lolo / Apu", "pronun": "LOH-loh / AH-poo", "eng": "Grandfather"}, {"kamp": "Koya", "pronun": "KOH-yah", "eng": "Older brother"}, {"kamp": "Atchi", "pronun": "AHT-chee", "eng": "Older sister"}, {"kamp": "Wali", "pronun": "WAH-lee", "eng": "Younger sibling"}, {"kamp": "Pisan", "pronun": "pee-SAN", "eng": "Cousin"}, {"kamp": "Bapa", "pronun": "BAH-pah", "eng": "Uncle"}, {"kamp": "Dara", "pronun": "DAH-rah", "eng": "Aunt"}, {"kamp": "Paunakan", "pronun": "pah-oo-NAH-kan", "eng": "Niece / Nephew"}, {"kamp": "Anak kung babai", "pronun": "ah-NAK koong bah-BAH-ee", "eng": "Daughter"}, {"kamp": "Anak kung lalaki", "pronun": "ah-NAK koong lah-LAH-kee", "eng": "Son"}], "phrases": [{"kamp": "Ini ing asawa ku", "pronun": "EE-nee ing ah-SAH-wah koo", "eng": "This is my wife / husband", "note": "Use when introducing someone beside you"}, {"kamp": "Ya ing asawa ku", "pronun": "yah ing ah-SAH-wah koo", "eng": "She / he is my wife / husband", "note": "Use when pointing someone out"}, {"kamp": "Ini ing ima ku", "pronun": "EE-nee ing EE-mah koo", "eng": "This is my mother", "note": ""}, {"kamp": "Ini ing tatang ku", "pronun": "EE-nee ing tah-TANG koo", "eng": "This is my father", "note": ""}, {"kamp": "Anak ke", "pronun": "ah-NAK keh", "eng": "My child", "note": ""}, {"kamp": "Anak kung babai", "pronun": "ah-NAK koong bah-BAH-ee", "eng": "My daughter", "note": ""}], "insight": {"icon": "&#128161;", "title": "No he or she in Kapampangan", "body": "Kapampangan has no separate pronouns for he and she. Gender is understood from context. To specify, add babai (female) or lalaki (male) after anak. Anak kung babai means my daughter. Anak kung lalaki means my son."}, "dialogue": [{"speaker": "other", "kamp": "Ini ing tatang ku.", "eng": "This is my father."}, {"speaker": "you", "kamp": "Opu.", "eng": "Yes. (respectful greeting)"}, {"speaker": "other", "kamp": "Ini ing ima ku.", "eng": "This is my mother."}, {"speaker": "you", "kamp": "Opu. Ini ing asawa ku.", "eng": "Yes. This is my wife / husband."}, {"speaker": "elder", "kamp": "Malagu! Kaluguran da ka, anak.", "eng": "Wonderful! We love you."}, {"speaker": "you", "kamp": "Kaluguran da kayu.", "eng": "I love you all too."}]}, {"id": 3, "phase": 1, "title": "At Home", "subtitle": "Rooms, household items and everyday home phrases", "type": "standard", "vocab": [{"kamp": "Bale", "pronun": "BAH-leh", "eng": "House / Home"}, {"kamp": "Salas", "pronun": "SAH-las", "eng": "Living room"}, {"kamp": "Kwartu", "pronun": "KWAR-too", "eng": "Bedroom"}, {"kamp": "Kasilyas", "pronun": "kah-SIL-yas", "eng": "Bathroom"}, {"kamp": "Lamesa", "pronun": "lah-MEH-sah", "eng": "Table"}, {"kamp": "Luklukan", "pronun": "look-LOO-kan", "eng": "Chair"}, {"kamp": "Pagkeran", "pronun": "pag-KEH-ran", "eng": "Bed"}, {"kamp": "Ulunan", "pronun": "oo-LOO-nan", "eng": "Pillow"}, {"kamp": "Ulas", "pronun": "OO-las", "eng": "Blanket"}, {"kamp": "Kalang", "pronun": "KAH-lang", "eng": "Stove"}, {"kamp": "Pinggan", "pronun": "PING-gan", "eng": "Plate"}, {"kamp": "Tasa", "pronun": "TAH-sah", "eng": "Cup"}], "insight": {"icon": "&#128161;", "title": "Bale means home, not just house", "body": "Bale means both house and home in Kapampangan. You will hear it constantly. The rooms all have their own names: Salas (living room), Kwartu (bedroom), Kasilyas (bathroom). Once you know these, you can navigate any Kapampangan home with confidence."}, "dialogue": [{"speaker": "other", "kamp": "Mekeni! Mangan ta na.", "eng": "Come here! Let us eat."}, {"speaker": "you", "kamp": "Wa! Nukarin?", "eng": "Yes! Where?"}, {"speaker": "other", "kamp": "Salas. King lamesa.", "eng": "Living room. At the table."}, {"speaker": "you", "kamp": "Wa, bilisan ku.", "eng": "Yes, I will hurry."}]}, {"id": 4, "phase": 1, "title": "How Are You?", "subtitle": "Feelings, emotions and basic conversation", "type": "standard", "vocab": [{"kamp": "Kumusta na ka?", "pronun": "koo-MOOS-tah nah kah", "eng": "How are you?"}, {"kamp": "Mayap", "pronun": "MAH-yap", "eng": "Good"}, {"kamp": "Matula", "pronun": "mah-TOO-lah", "eng": "Happy"}, {"kamp": "Malungkut", "pronun": "mah-LOONG-koot", "eng": "Sad"}, {"kamp": "Mapagal", "pronun": "mah-PAH-gal", "eng": "Tired"}, {"kamp": "Pakirut", "pronun": "pah-kee-ROOT", "eng": "Surprised"}, {"kamp": "Mimwa", "pronun": "MEEM-wah", "eng": "Angry"}, {"kamp": "Kakarug", "pronun": "kah-KAH-roog", "eng": "Nervous"}, {"kamp": "Mebigla", "pronun": "meh-BIG-lah", "eng": "Amused"}, {"kamp": "Malilitu", "pronun": "mah-lee-LEE-too", "eng": "Confused"}], "insight": {"icon": "&#128161;", "title": "The Ma- pattern for feelings", "body": "Many emotion words in Kapampangan start with Ma-: Matula (happy), Malungkut (sad), Mapagal (tired). This is one of the language's most useful patterns. When you see a word starting with Ma-, it is often describing a state or condition. You will see this same pattern with colours, adjectives and weather too."}, "dialogue": [{"speaker": "other", "kamp": "Kumusta na ka?", "eng": "How are you?"}, {"speaker": "you", "kamp": "Mayap! Matula ku. Ikwa?", "eng": "Good! I am happy. And you?"}, {"speaker": "other", "kamp": "Mapagal ku, oneng mayap.", "eng": "I am tired, but good."}, {"speaker": "you", "kamp": "Mimingat ka!", "eng": "Take care!"}, {"speaker": "other", "kamp": "Salamat!", "eng": "Thank you!"}]}, {"id": 5, "phase": 1, "title": "Pleasantries & Goodbyes", "subtitle": "Thank you, sorry, good morning and farewell phrases", "type": "standard", "vocab": [{"kamp": "Salamat", "pronun": "sah-LAH-mat", "eng": "Thank you"}, {"kamp": "Patawad na", "pronun": "pah-TAH-wad nah", "eng": "I am sorry"}, {"kamp": "Mayap a abak", "pronun": "MAH-yap ah AH-bak", "eng": "Good morning"}, {"kamp": "Mayap a bengi", "pronun": "MAH-yap ah BEH-ngee", "eng": "Good evening"}, {"kamp": "Muna naku", "pronun": "MOO-nah NAH-koo", "eng": "Goodbye"}, {"kamp": "Masayang Kebaitan", "pronun": "mah-SAH-yang keh-BAI-tan", "eng": "Happy birthday"}, {"kamp": "Mimingat", "pronun": "mee-MEE-ngat", "eng": "Take care"}, {"kamp": "Ali ku antindyan", "pronun": "AH-lee koo an-TIN-dyan", "eng": "I don't understand"}, {"kamp": "Pweding paki ulit mas mabagal?", "pronun": "PWEH-ding PAH-kee OO-lit mas mah-BAH-gal", "eng": "Can you say that again, slowly?"}], "insight": {"icon": "&#128161;", "title": "Mayap a means good", "body": "Mayap a is used for time-based greetings. Mayap a abak means good morning (abak means morning). Mayap a bengi means good evening (bengi means night). You can build on this prefix once you learn more time words and it will always work."}, "dialogue": [{"speaker": "you", "kamp": "Mayap a abak!", "eng": "Good morning!"}, {"speaker": "other", "kamp": "Mayap a abak! Kumusta na ka?", "eng": "Good morning! How are you?"}, {"speaker": "you", "kamp": "Mayap! Salamat. Ikwa?", "eng": "Good! Thank you. And you?"}, {"speaker": "other", "kamp": "Matula ku!", "eng": "I am happy!"}, {"speaker": "you", "kamp": "Muna naku. Mimingat!", "eng": "Goodbye. Take care!"}, {"speaker": "other", "kamp": "Muna naku!", "eng": "Goodbye!"}]}, {"id": 6, "phase": 2, "title": "Numbers", "subtitle": "Counting from one to ten and asking about prices", "type": "standard", "vocab": [{"kamp": "Metung", "pronun": "MEH-toong", "eng": "One"}, {"kamp": "Adwa", "pronun": "AD-wah", "eng": "Two"}, {"kamp": "Atlu", "pronun": "AT-loo", "eng": "Three"}, {"kamp": "Apat", "pronun": "AH-pat", "eng": "Four"}, {"kamp": "Lima", "pronun": "LEE-mah", "eng": "Five"}, {"kamp": "Anam", "pronun": "AH-nam", "eng": "Six"}, {"kamp": "Pitu", "pronun": "PEE-too", "eng": "Seven"}, {"kamp": "Walu", "pronun": "WAH-loo", "eng": "Eight"}, {"kamp": "Siyam", "pronun": "SEE-yam", "eng": "Nine"}, {"kamp": "Apulu", "pronun": "ah-POO-loo", "eng": "Ten"}, {"kamp": "Magkanu?", "pronun": "mag-KAH-noo", "eng": "How much does it cost?"}, {"kamp": "Makananu karakal?", "pronun": "mah-kah-NAH-noo kah-RAH-kal", "eng": "How many?"}], "insight": {"icon": "&#128161;", "title": "Numbers unlock a lot", "body": "Once you know 1-10, you can count, talk about money and describe quantities. Magkanu (how much does it cost?) and Makananu karakal (how many?) are two of the most useful questions you can ask at a market, ordering food, or in everyday conversation."}, "dialogue": [{"speaker": "you", "kamp": "Magkanu?", "eng": "How much?"}, {"speaker": "other", "kamp": "Lima.", "eng": "Five."}, {"speaker": "you", "kamp": "Adwa, pwede?", "eng": "Two, is that okay?"}, {"speaker": "other", "kamp": "Wa, adwa. Salamat!", "eng": "Yes, two. Thank you!"}]}, {"id": 7, "phase": 2, "title": "Food & Flavours", "subtitle": "Everyday food, drinks and how things taste", "type": "standard", "vocab": [{"kamp": "Nasi", "pronun": "NAH-see", "eng": "Cooked rice"}, {"kamp": "Danum", "pronun": "DAH-noom", "eng": "Water"}, {"kamp": "Kape", "pronun": "KAH-peh", "eng": "Coffee"}, {"kamp": "Gule", "pronun": "GOO-leh", "eng": "Vegetables"}, {"kamp": "Karni", "pronun": "KAR-nee", "eng": "Meat"}, {"kamp": "Asan", "pronun": "AH-san", "eng": "Fish"}, {"kamp": "Prutas", "pronun": "PROO-tas", "eng": "Fruit"}, {"kamp": "Manyaman", "pronun": "mah-NYAH-man", "eng": "Delicious"}, {"kamp": "Mayumu", "pronun": "mah-YOO-moo", "eng": "Sweet"}, {"kamp": "Maparas", "pronun": "mah-PAH-ras", "eng": "Spicy"}, {"kamp": "Malat", "pronun": "MAH-lat", "eng": "Salty"}, {"kamp": "Malinamnam", "pronun": "mah-lee-NAM-nam", "eng": "Savoury / Umami"}, {"kamp": "Maranup", "pronun": "mah-RAH-noop", "eng": "Hungry"}, {"kamp": "Mabsi", "pronun": "MAB-see", "eng": "Full (after eating)"}], "insight": {"icon": "&#128161;", "title": "Flavour words all start with Ma-", "body": "In Kapampangan, all taste words follow the Ma- pattern: Mayumu (sweet), Maparas (spicy), Malat (salty), Mapait (bitter), Maslam (sour), Malinamnam (umami). Once you know this pattern, you can recognise and guess flavour words you have not learned yet. Manyaman (delicious) is the most useful of all."}, "dialogue": [{"speaker": "other", "kamp": "Mangan ta na!", "eng": "Let us eat!"}, {"speaker": "you", "kamp": "Wa! Maranup na ku.", "eng": "Yes! I am hungry now."}, {"speaker": "other", "kamp": "Manyaman? Nasi ampo karni.", "eng": "Is it good? Rice and meat."}, {"speaker": "you", "kamp": "Wa, manyaman! Mabsi na ku.", "eng": "Yes, delicious! I am full now."}]}, {"id": 8, "phase": 2, "title": "Getting Around", "subtitle": "Places, directions and how to find your way", "type": "standard", "vocab": [{"kamp": "Palengki", "pronun": "pah-LENG-kee", "eng": "Market"}, {"kamp": "Pisamban", "pronun": "pee-SAM-ban", "eng": "Church"}, {"kamp": "Ospital", "pronun": "os-pee-TAL", "eng": "Hospital"}, {"kamp": "Skwela", "pronun": "SKWEH-lah", "eng": "School"}, {"kamp": "Pisalwanan", "pronun": "pee-sal-WAH-nan", "eng": "Shop / Store"}, {"kamp": "Kilwal", "pronun": "kil-WAL", "eng": "Outside"}, {"kamp": "Kilub", "pronun": "KEE-loob", "eng": "Inside"}, {"kamp": "Babo", "pronun": "BAH-bo", "eng": "Up / Upstairs"}, {"kamp": "Lalam", "pronun": "LAH-lam", "eng": "Down / Downstairs"}, {"kamp": "Kayli", "pronun": "KAY-lee", "eng": "Left"}, {"kamp": "Wanan", "pronun": "WAH-nan", "eng": "Right"}, {"kamp": "Deretsu", "pronun": "deh-RET-soo", "eng": "Straight ahead"}, {"kamp": "Malapit", "pronun": "mah-LAH-pit", "eng": "Near"}, {"kamp": "Malaut", "pronun": "mah-LAH-oot", "eng": "Far"}, {"kamp": "Keni", "pronun": "KEH-nee", "eng": "Here"}, {"kamp": "Keta", "pronun": "KEH-tah", "eng": "There"}], "insight": {"icon": "&#128161;", "title": "Babo and Lalam go beyond stairs", "body": "Babo means both up and upstairs. Lalam means both down and downstairs. These words also describe relative position. Something on top is Babo, something underneath is Lalam. Very versatile and you will hear them constantly."}, "dialogue": [{"speaker": "you", "kamp": "Nukarin ing palengki?", "eng": "Where is the market?"}, {"speaker": "other", "kamp": "Deretsu, kasumunod kayli.", "eng": "Straight, then left."}, {"speaker": "you", "kamp": "Malapit o malaut?", "eng": "Near or far?"}, {"speaker": "other", "kamp": "Malapit! Keta.", "eng": "Near! Over there."}, {"speaker": "you", "kamp": "Salamat!", "eng": "Thank you!"}]}, {"id": 9, "phase": 2, "title": "Asking Questions", "subtitle": "Who, what, where, when, why and how", "type": "standard", "vocab": [{"kamp": "Ninu?", "pronun": "NEE-noo", "eng": "Who?"}, {"kamp": "Nanu?", "pronun": "NAH-noo", "eng": "What?"}, {"kamp": "Nukarin?", "pronun": "noo-KAH-rin", "eng": "Where?"}, {"kamp": "Kapilan?", "pronun": "kah-PEE-lan", "eng": "When?"}, {"kamp": "Bakit?", "pronun": "BAH-kit", "eng": "Why?"}, {"kamp": "Makananu?", "pronun": "mah-kah-NAH-noo", "eng": "How?"}, {"kamp": "Magkanu?", "pronun": "mag-KAH-noo", "eng": "How much?"}, {"kamp": "Makananu karakal?", "pronun": "mah-kah-NAH-noo kah-RAH-kal", "eng": "How many?"}], "insight": {"icon": "&#128161;", "title": "Questions come first", "body": "Question words in Kapampangan come at the start of the sentence. Nanu ya ing pangalan mu? means What is your name? You already know Nanu from Nanu ya ing WiFi password. That is exactly the same pattern. The question word leads, then the rest of the sentence follows."}, "dialogue": [{"speaker": "other", "kamp": "Ninu ka?", "eng": "Who are you?"}, {"speaker": "you", "kamp": "Matthew ku. Ikwa, ninu ka?", "eng": "I am Matthew. And you?"}, {"speaker": "other", "kamp": "Maria ku. Nukarin ka ibat?", "eng": "I am Maria. Where are you from?"}, {"speaker": "you", "kamp": "Australia ku ibat.", "eng": "I am from Australia."}, {"speaker": "other", "kamp": "Malagu! Kapilan ka miarating?", "eng": "Wonderful! When did you arrive?"}]}, {"id": 10, "phase": 2, "title": "Describing Things", "subtitle": "Adjectives for size, temperature, speed and more", "type": "standard", "vocab": [{"kamp": "Maragul", "pronun": "mah-RAH-gool", "eng": "Big / Large"}, {"kamp": "Malati", "pronun": "mah-LAH-tee", "eng": "Small"}, {"kamp": "Mapali", "pronun": "mah-PAH-lee", "eng": "Hot"}, {"kamp": "Marimla", "pronun": "mah-RIM-lah", "eng": "Cold"}, {"kamp": "Malinis", "pronun": "mah-LEE-nis", "eng": "Clean"}, {"kamp": "Marinat", "pronun": "mah-ree-NAT", "eng": "Dirty"}, {"kamp": "Mabilis", "pronun": "mah-BEE-lis", "eng": "Fast"}, {"kamp": "Mabagal", "pronun": "mah-BAH-gal", "eng": "Slow"}, {"kamp": "Masyas", "pronun": "mas-YAS", "eng": "Hard"}, {"kamp": "Masagli", "pronun": "mah-SAG-lee", "eng": "Soft"}, {"kamp": "Mabasa", "pronun": "mah-BAH-sah", "eng": "Wet"}, {"kamp": "Malangi", "pronun": "mah-LAH-ngee", "eng": "Dry"}], "insight": {"icon": "&#128161;", "title": "Almost every adjective starts with Ma-", "body": "You will notice it in emotions, flavours and now descriptive words. Kapampangan uses the Ma- prefix extensively. Maragul (big), Malati (small), Mapali (hot), Marimla (cold). When you see a word starting with Ma-, there is a strong chance it is describing a quality or state."}, "dialogue": [{"speaker": "you", "kamp": "Maragul ing bale!", "eng": "The house is big!"}, {"speaker": "other", "kamp": "Wa, maragul oneng malinis.", "eng": "Yes, big but clean."}, {"speaker": "you", "kamp": "Mapali dini!", "eng": "It is hot here!"}, {"speaker": "other", "kamp": "Wa, oneng marimla king kwartu.", "eng": "Yes, but cold in the bedroom."}]}, {"id": 11, "phase": 2, "title": "Weather & Days", "subtitle": "Talking about the weather and days of the week", "type": "standard", "vocab": [{"kamp": "Mayaldo", "pronun": "mah-YAL-do", "eng": "Sunny"}, {"kamp": "Malulam", "pronun": "mah-LOO-lam", "eng": "Cloudy"}, {"kamp": "Mauran", "pronun": "mah-OO-ran", "eng": "Rainy"}, {"kamp": "Mahangin", "pronun": "mah-HAH-ngin", "eng": "Windy"}, {"kamp": "Bagyu", "pronun": "BAG-yoo", "eng": "Stormy"}, {"kamp": "Pinanari", "pronun": "pee-nah-NAH-ree", "eng": "Rainbow"}, {"kamp": "Abak", "pronun": "AH-bak", "eng": "Morning"}, {"kamp": "Bengi", "pronun": "BEH-ngee", "eng": "Night / Evening"}, {"kamp": "Lunis", "pronun": "LOO-nis", "eng": "Monday"}, {"kamp": "Martis", "pronun": "MAR-tis", "eng": "Tuesday"}, {"kamp": "Myerkulis", "pronun": "myer-KOO-lis", "eng": "Wednesday"}, {"kamp": "Webis", "pronun": "WEH-bis", "eng": "Thursday"}, {"kamp": "Byernis", "pronun": "BYER-nis", "eng": "Friday"}, {"kamp": "Sabadu", "pronun": "sah-BAH-doo", "eng": "Saturday"}, {"kamp": "Dumingu", "pronun": "doo-MING-goo", "eng": "Sunday"}], "insight": {"icon": "&#128161;", "title": "Days of the week come from Spanish", "body": "The Philippines was colonised by Spain for over 300 years and it shaped everyday vocabulary deeply. Days of the week in Kapampangan are direct borrowings from Spanish: Lunis from Lunes (Monday), Martis from Martes (Tuesday), Myerkulis from Miercoles (Wednesday). If you have ever studied Spanish, these will feel immediately familiar."}, "dialogue": [{"speaker": "other", "kamp": "Makananu ing panawun?", "eng": "How is the weather?"}, {"speaker": "you", "kamp": "Mauran! Oneng marimla.", "eng": "Rainy! But cool."}, {"speaker": "other", "kamp": "Kapilan ka mako king palengki?", "eng": "When are you going to the market?"}, {"speaker": "you", "kamp": "Sabadu o Dumingu.", "eng": "Saturday or Sunday."}, {"speaker": "other", "kamp": "Mayap! Mako tamu.", "eng": "Great! Let us go together."}]}, {"id": 12, "phase": 2, "title": "Body Parts", "subtitle": "Head to toe - useful for health and description", "type": "standard", "vocab": [{"kamp": "Mata", "pronun": "MAH-tah", "eng": "Eyes"}, {"kamp": "Balugbug", "pronun": "bah-LOOG-boog", "eng": "Ears"}, {"kamp": "Arung", "pronun": "AH-roong", "eng": "Nose"}, {"kamp": "Asbuk", "pronun": "AS-book", "eng": "Mouth"}, {"kamp": "Gamat", "pronun": "GAH-mat", "eng": "Hands"}, {"kamp": "Dila", "pronun": "DEE-lah", "eng": "Tongue"}, {"kamp": "Bwak", "pronun": "bwak", "eng": "Hair"}, {"kamp": "Batal", "pronun": "BAH-tal", "eng": "Neck"}, {"kamp": "Pago", "pronun": "PAH-go", "eng": "Shoulder"}, {"kamp": "Brasu", "pronun": "BRAH-soo", "eng": "Arms"}, {"kamp": "Butit", "pronun": "BOO-tit", "eng": "Legs"}, {"kamp": "Bitis", "pronun": "BEE-tis", "eng": "Feet"}, {"kamp": "Kuku", "pronun": "KOO-koo", "eng": "Fingernails"}, {"kamp": "Pusad", "pronun": "poo-SAD", "eng": "Belly button"}], "insight": {"icon": "&#128161;", "title": "Body parts for everyday life", "body": "Knowing body part vocabulary helps immediately whether you are unwell, describing someone, or following instructions. A useful phrase to know: Masakit ing [body part] ku means My [body part] hurts. You will hear Masakit often. It means hurting or painful."}, "dialogue": [{"speaker": "other", "kamp": "Kumusta na ka?", "eng": "How are you?"}, {"speaker": "you", "kamp": "Mapagal ku. Masakit ing pago ku.", "eng": "I am tired. My shoulder hurts."}, {"speaker": "other", "kamp": "Aie! Mimingat ka.", "eng": "Oh no! Take care."}, {"speaker": "you", "kamp": "Salamat. Kailangan kung mapagpahinga.", "eng": "Thank you. I need to rest."}]}, {"id": 13, "phase": 2, "title": "Colours & Shapes", "subtitle": "Describing the world around you visually", "type": "standard", "vocab": [{"kamp": "Malutu", "pronun": "mah-LOO-too", "eng": "Red"}, {"kamp": "Mairo", "pronun": "mah-EE-ro", "eng": "Blue"}, {"kamp": "Mayaluntiang", "pronun": "mah-yah-loon-TYANG", "eng": "Green"}, {"kamp": "Mapapas", "pronun": "mah-PAH-pas", "eng": "Yellow"}, {"kamp": "Maputi", "pronun": "mah-POO-tee", "eng": "White"}, {"kamp": "Magikuliawan", "pronun": "mah-ghee-koo-lee-AH-wan", "eng": "Orange"}, {"kamp": "Makomanggi", "pronun": "mah-ko-MANG-ghee", "eng": "Brown"}, {"kamp": "Matuling", "pronun": "mah-TOO-ling", "eng": "Black"}, {"kamp": "Mabilug", "pronun": "mah-BEE-loog", "eng": "Circle / Round"}, {"kamp": "Parisukat", "pronun": "pah-ree-SOO-kat", "eng": "Square"}, {"kamp": "Triyanggulu", "pronun": "tree-yang-GOO-loo", "eng": "Triangle"}, {"kamp": "Batwin", "pronun": "BAT-win", "eng": "Star (shape)"}], "insight": {"icon": "&#128161;", "title": "All colour words start with Ma-", "body": "There is that Ma- prefix again, this time for colours. Malutu (red), Mairo (blue), Maputi (white), Matuling (black). By now you have seen this pattern in emotions, flavours, adjectives and weather. It is one of Kapampangan's most consistent patterns."}, "dialogue": [{"speaker": "other", "kamp": "Nanu ing kayabe mong bestida?", "eng": "What colour is your dress?"}, {"speaker": "you", "kamp": "Mairo. Oneng malutu ing sapatus ku.", "eng": "Blue. But my shoes are red."}, {"speaker": "other", "kamp": "Malagu!", "eng": "Beautiful!"}, {"speaker": "you", "kamp": "Salamat!", "eng": "Thank you!"}]}, {"id": 14, "phase": 2, "title": "Animals", "subtitle": "Common animals and their Kapampangan names", "type": "standard", "vocab": [{"kamp": "Asu", "pronun": "AH-soo", "eng": "Dog"}, {"kamp": "Pusa", "pronun": "POO-sah", "eng": "Cat"}, {"kamp": "Manuk", "pronun": "MAH-nook", "eng": "Chicken"}, {"kamp": "Damulag", "pronun": "DAH-moo-lag", "eng": "Carabao (water buffalo)"}, {"kamp": "Kambing", "pronun": "KAM-bing", "eng": "Goat"}, {"kamp": "Kabayu", "pronun": "kah-BAH-yoo", "eng": "Horse"}, {"kamp": "Baka", "pronun": "BAH-kah", "eng": "Cow"}, {"kamp": "Asan", "pronun": "AH-san", "eng": "Fish"}], "insight": {"icon": "&#128161;", "title": "The carabao - Pampanga's animal", "body": "The carabao (Damulag) is the national animal of the Philippines and an essential part of farming life in Pampanga. It is deeply embedded in Filipino culture, food and tradition. Knowing this word signals genuine cultural familiarity."}, "dialogue": [{"speaker": "other", "kamp": "Ati asu o pusa king bale yu?", "eng": "Do you have a dog or cat at home?"}, {"speaker": "you", "kamp": "Ati asu. Malagu ya.", "eng": "We have a dog. It is beautiful."}, {"speaker": "other", "kamp": "Maragul o malati?", "eng": "Big or small?"}, {"speaker": "you", "kamp": "Malati, oneng mabilis!", "eng": "Small, but fast!"}]}, {"id": 15, "phase": 3, "title": "Verbs in Action", "subtitle": "Common action words and how to use them", "type": "standard", "vocab": [{"kamp": "Lakad", "pronun": "LAH-kad", "eng": "Walk"}, {"kamp": "Pulayi", "pronun": "poo-LAH-yee", "eng": "Run"}, {"kamp": "Mangan", "pronun": "MAH-ngan", "eng": "Eat"}, {"kamp": "Minum", "pronun": "MEE-noom", "eng": "Drink"}, {"kamp": "Maglutu", "pronun": "mag-LOO-too", "eng": "Cook"}, {"kamp": "Mamasa", "pronun": "mah-MAH-sah", "eng": "Read"}, {"kamp": "Sulat", "pronun": "SOO-lat", "eng": "Write"}, {"kamp": "Terak", "pronun": "TEH-rak", "eng": "Dance"}, {"kamp": "Kanta", "pronun": "KAN-tah", "eng": "Sing"}, {"kamp": "Mamyalung", "pronun": "mam-YAH-loong", "eng": "Play"}, {"kamp": "Mukyat", "pronun": "MOO-kyat", "eng": "Climb"}, {"kamp": "Lundag", "pronun": "LOON-dag", "eng": "Jump"}], "insight": {"icon": "&#128161;", "title": "Verbs come first", "body": "In Kapampangan, verbs lead the sentence. Mangan ku means I eat. The verb Mangan comes before the subject ku (I). You have already been using this without thinking: Mangan ta na! starts with the verb. Maglutu ku means I cook. The verb is always the first word."}, "dialogue": [{"speaker": "other", "kamp": "Nanu ing gagawa mu?", "eng": "What are you doing?"}, {"speaker": "you", "kamp": "Maglutu ku. Mangan tamu kasumunod.", "eng": "I am cooking. We will eat soon."}, {"speaker": "other", "kamp": "Manyaman? Nanu?", "eng": "Delicious? What is it?"}, {"speaker": "you", "kamp": "Karni ampo gule. Manyaman!", "eng": "Meat and vegetables. Delicious!"}]}, {"id": 16, "phase": 3, "title": "Want, Need & Like", "subtitle": "Expressing preferences, needs and desires", "type": "standard", "vocab": [{"kamp": "Bisa kung...", "pronun": "BEE-sah koong", "eng": "I want..."}, {"kamp": "Kailangan kung...", "pronun": "kai-LAH-ngan koong", "eng": "I need..."}, {"kamp": "Buri kung...", "pronun": "BOO-ree koong", "eng": "I like..."}, {"kamp": "Ali ku buri ing...", "pronun": "AH-lee koo BOO-ree ing", "eng": "I don't like..."}, {"kamp": "Bisa kaming...", "pronun": "BEE-sah KAH-ming", "eng": "We want..."}, {"kamp": "Bisa lang...", "pronun": "BEE-sah lang", "eng": "They want..."}, {"kamp": "Ali ku antindyan", "pronun": "AH-lee koo an-TIN-dyan", "eng": "I don't understand"}, {"kamp": "Pweding paki ulit mas mabagal?", "pronun": "PWEH-ding PAH-kee OO-lit mas mah-BAH-gal", "eng": "Can you say that again, slowly?"}], "insight": {"icon": "&#128161;", "title": "The verb comes first even here", "body": "Bisa kung, Kailangan kung, Buri kung. The verb always comes first, then kung marks that the subject is I. Bisa (want) + kung (I) = I want. Swap kung for other subjects: kaming (we), lang (they). The verb stays at the front."}, "dialogue": [{"speaker": "you", "kamp": "Bisa kung kape, pwede?", "eng": "I want coffee, please."}, {"speaker": "other", "kamp": "Wa! Mapali o marimla?", "eng": "Yes! Hot or cold?"}, {"speaker": "you", "kamp": "Mapali. Salamat.", "eng": "Hot. Thank you."}, {"speaker": "other", "kamp": "Buri ka ning nasi?", "eng": "Do you want rice?"}, {"speaker": "you", "kamp": "Ali ku buri ing nasi. Salamat.", "eng": "I do not want rice. Thank you."}]}, {"id": 17, "phase": 3, "title": "Connecting Ideas", "subtitle": "Linking sentences to build real conversations", "type": "standard", "vocab": [{"kamp": "Ampo", "pronun": "AM-po", "eng": "And"}, {"kamp": "Oneng", "pronun": "OH-neng", "eng": "But"}, {"kamp": "Uli ning", "pronun": "OO-lee ning", "eng": "Because"}, {"kamp": "Anya", "pronun": "AN-yah", "eng": "So / Therefore"}, {"kamp": "Na", "pronun": "nah", "eng": "Now / Already"}, {"kamp": "Pa", "pronun": "pah", "eng": "Still / Yet"}, {"kamp": "Naman", "pronun": "NAH-man", "eng": "Also / Too / In return"}], "insight": {"icon": "&#128161;", "title": "Four words that change everything", "body": "Ampo (and), Oneng (but), Uli ning (because), Anya (so). These four connecting words transform simple phrases into real sentences. Matula ku, oneng mapagal ku means I am happy, but I am tired. Maranup na ku, anya mangan ta na means I am hungry now, so let us eat."}, "dialogue": [{"speaker": "other", "kamp": "Mako ka king palengki?", "eng": "Are you going to the market?"}, {"speaker": "you", "kamp": "Wa, uli ning kailangan kung karni ampo gule.", "eng": "Yes, because I need meat and vegetables."}, {"speaker": "other", "kamp": "Malapit o malaut?", "eng": "Near or far?"}, {"speaker": "you", "kamp": "Malapit, oneng mauran. Anya ali ku masaya.", "eng": "Near, but it is raining. So I am not happy."}, {"speaker": "other", "kamp": "Mako tamu! Ati kampoti ku.", "eng": "Let us go together! I have a raincoat."}]}, {"id": 18, "phase": 3, "title": "Root Words Unlocked", "subtitle": "How Kapampangan transforms words by aspect", "type": "standard", "vocab": [{"kamp": "Lugud", "pronun": "LOO-good", "eng": "Love (root word)"}, {"kamp": "Kaluguran", "pronun": "kah-loo-GOO-ran", "eng": "To love / Loving"}, {"kamp": "Sira", "pronun": "SEE-rah", "eng": "Broken (root / state)"}, {"kamp": "Manyira", "pronun": "man-YEE-rah", "eng": "Breaking (ongoing action)"}, {"kamp": "Masisira", "pronun": "mah-see-SEE-rah", "eng": "Will break / About to break"}, {"kamp": "Mesira", "pronun": "meh-SEE-rah", "eng": "Already broken"}, {"kamp": "Siran", "pronun": "SEE-ran", "eng": "Act of breaking something"}, {"kamp": "Lakad", "pronun": "LAH-kad", "eng": "Walk (root)"}, {"kamp": "Milakad", "pronun": "mee-LAH-kad", "eng": "Is walking (ongoing)"}], "insight": {"icon": "&#128161;", "title": "Aspect, not tense", "body": "This is the heart of Kapampangan. English changes verbs for time: walk, walked, will walk. Kapampangan changes verbs for aspect, whether an action is a state, ongoing, upcoming or completed. Sira (broken state), Manyira (breaking, ongoing), Masisira (going to break), Mesira (already broken). Just recognise the pattern for now."}, "dialogue": [{"speaker": "other", "kamp": "Nanu ing problema?", "eng": "What is the problem?"}, {"speaker": "you", "kamp": "Mesira ing arelo.", "eng": "The clock is already broken."}, {"speaker": "other", "kamp": "Nukarin?", "eng": "Where?"}, {"speaker": "you", "kamp": "King kwartu. Manyira na.", "eng": "In the bedroom. It is breaking now."}, {"speaker": "other", "kamp": "Aie! Bilisan mu!", "eng": "Oh no! Hurry up!"}]}, {"id": 19, "phase": 3, "title": "Clothing & Appearance", "subtitle": "What people wear and how to describe it", "type": "standard", "vocab": [{"kamp": "Malan", "pronun": "MAH-lan", "eng": "Clothes"}, {"kamp": "Bestida", "pronun": "bes-TEE-dah", "eng": "Dress"}, {"kamp": "Salol", "pronun": "SAH-lol", "eng": "Pants / Trousers"}, {"kamp": "Kupya", "pronun": "KOOP-yah", "eng": "Hat"}, {"kamp": "Sapatus", "pronun": "sah-PAH-toos", "eng": "Shoes"}, {"kamp": "Tsinelas", "pronun": "tsee-NEH-las", "eng": "Slippers / Thongs"}, {"kamp": "Sinturun", "pronun": "sin-TOO-roon", "eng": "Belt"}, {"kamp": "Palda", "pronun": "PAL-dah", "eng": "Skirt"}, {"kamp": "Medyas", "pronun": "MED-yas", "eng": "Socks"}, {"kamp": "Kampoti", "pronun": "kam-POH-tee", "eng": "Raincoat"}, {"kamp": "Botas", "pronun": "BOH-tas", "eng": "Boots"}, {"kamp": "Tingga", "pronun": "TING-gah", "eng": "Earrings"}], "insight": {"icon": "&#128161;", "title": "Spanish roots in clothing words", "body": "Many Kapampangan clothing words came from Spanish during the colonial period. Sapatus from zapatos (shoes), Salol from pantalon (pants), Bestida from vestida (dressed), Sinturun from cinturon (belt). Spanish influence is woven throughout everyday Kapampangan vocabulary."}, "dialogue": [{"speaker": "other", "kamp": "Malagu ing bestida mu!", "eng": "Your dress is beautiful!"}, {"speaker": "you", "kamp": "Salamat! Malutu ampo maputi.", "eng": "Thank you! Red and white."}, {"speaker": "other", "kamp": "Nukarin mo binili?", "eng": "Where did you buy it?"}, {"speaker": "you", "kamp": "King pisalwanan. Malati ing presyu.", "eng": "At the shop. The price was low."}, {"speaker": "other", "kamp": "Malagu! Bisa ku naman.", "eng": "Wonderful! I want one too."}]}, {"id": 20, "phase": 3, "title": "Real Conversations", "subtitle": "Putting everything together in natural conversation", "type": "standard", "vocab": [{"kamp": "Kumusta na ka?", "pronun": "koo-MOOS-tah nah kah", "eng": "How are you?"}, {"kamp": "Mayap, salamat", "pronun": "MAH-yap sah-LAH-mat", "eng": "Good, thank you"}, {"kamp": "Bisa kung...", "pronun": "BEE-sah koong", "eng": "I want..."}, {"kamp": "Kailangan kung...", "pronun": "kai-LAH-ngan koong", "eng": "I need..."}, {"kamp": "Ali ku antindyan", "pronun": "AH-lee koo an-TIN-dyan", "eng": "I don't understand"}, {"kamp": "Pweding paki ulit?", "pronun": "PWEH-ding PAH-kee OO-lit", "eng": "Can you repeat that?"}, {"kamp": "Manyaman", "pronun": "mah-NYAH-man", "eng": "Delicious"}, {"kamp": "Malagu", "pronun": "mah-LAH-goo", "eng": "Beautiful / Wonderful"}, {"kamp": "Kaluguran da ka", "pronun": "kah-loo-GOO-ran dah kah", "eng": "I love you"}, {"kamp": "Muna naku", "pronun": "MOO-nah NAH-koo", "eng": "Goodbye"}], "insight": {"icon": "&#127881;", "title": "You have built a real foundation", "body": "You know greetings, family, home, food, directions, questions, descriptions, emotions, verbs, clothing and how to connect ideas. That is the full foundation of conversational Kapampangan. The rest comes from real use. Speak it, make mistakes, and get better each time. Do not wait until you feel ready."}, "dialogue": [{"speaker": "other", "kamp": "Mayap a abak! Kumusta na ka?", "eng": "Good morning! How are you?"}, {"speaker": "you", "kamp": "Mayap, salamat! Matula ku agyang abak.", "eng": "Good, thank you! I am happy this morning."}, {"speaker": "other", "kamp": "Malagu! Makananu ing Kapampangan mu?", "eng": "Wonderful! How is your Kapampangan?"}, {"speaker": "you", "kamp": "Malati pa, oneng buri kung masala.", "eng": "Still basic, but I want to improve."}, {"speaker": "other", "kamp": "Manyaman! Matua kami king ikwa.", "eng": "Wonderful! We are proud of you."}, {"speaker": "you", "kamp": "Salamat! Kaluguran da kayu.", "eng": "Thank you! I love you all."}, {"speaker": "other", "kamp": "Kaluguran da ka naman!", "eng": "We love you too!"}]}];
+const PHASES={1:"Foundation",2:"Building",3:"Conversation"};
+let S={user:null,completedLessons:[],isAdmin:false,isRecorder:false,canRecord:false,recorders:[],lessonOverrides:{},audioUrls:{},fcDeck:[],fcIdx:0,fcFlipped:false,adminLessonId:1};
+let lfcCards=[],lfcIdx=0,lfcFlipped=false,modalSaveFn=null,modalSpeaker='other';
+let recState={key:null,word:'',eng:'',phase:'idle',stream:null,recorder:null,chunks:[],blob:null,previewUrl:null,timer:null,secs:0};
+
+function getLesson(id){const base=LESSONS_DEFAULT.find(l=>l.id===id);if(!base)return null;const ov=S.lessonOverrides[id];if(!ov)return base;return{...base,vocab:ov.vocab?Object.values(ov.vocab):base.vocab,dialogue:ov.dialogue?Object.values(ov.dialogue):base.dialogue,phrases:ov.phrases?Object.values(ov.phrases):base.phrases,insight:ov.insight||base.insight};}
+
+document.getElementById("btn-login").onclick=()=>{document.getElementById("login-msg").textContent="Opening Google sign-in...";auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()).catch(()=>{document.getElementById("login-msg").textContent="Sign-in failed - please try again.";});};
+function doSignOut(){if(!confirm("Sign out?"))return;auth.signOut();}
+
+auth.onAuthStateChanged(user=>{
+  if(user){
+    S.user=user;S.isAdmin=ADMIN_EMAILS.includes(user.email);
+    if(S.isAdmin)document.getElementById('admin-nav-btn').classList.remove('hidden');
+    Promise.all([
+      db.ref('lessonData').once('value'),
+      db.ref('lessonAudio').once('value'),
+      db.ref("users/"+user.uid).once("value"),
+      db.ref('recorders').once('value')
+    ]).then(([ls,as,us,rs])=>{
+      S.lessonOverrides=ls.val()||{};
+      const ad=as.val()||{};
+      Object.entries(ad).forEach(([lid,t])=>{
+        if(t.vocab)Object.entries(t.vocab).forEach(([i,u])=>{S.audioUrls[`L${lid}V${i}`]=u;});
+        if(t.dialogue)Object.entries(t.dialogue).forEach(([i,u])=>{S.audioUrls[`L${lid}D${i}`]=u;});
+        if(t.phrases)Object.entries(t.phrases).forEach(([i,u])=>{S.audioUrls[`L${lid}P${i}`]=u;});
+      });
+      const rd=rs.val()||{};
+      S.recorders=Object.keys(rd).map(k=>k.replace(/,/g,'.').replace(/_at_/g,'@'));
+      const ek=user.email.replace(/\./g,',').replace(/@/g,'_at_');
+      S.isRecorder=!!rd[ek]&&!S.isAdmin;
+      S.canRecord=S.isAdmin||S.isRecorder;
+      if(S.isRecorder)document.getElementById('rec-nav-btn').classList.remove('hidden');
+      const d=us.val();if(d&&d.completedLessons)S.completedLessons=d.completedLessons;
+      showApp();
+    }).catch(()=>showApp());
+  }else{
+    S.user=null;S.isAdmin=false;S.isRecorder=false;S.canRecord=false;S.recorders=[];S.completedLessons=[];S.lessonOverrides={};S.audioUrls={};
+    document.getElementById("login-screen").classList.remove("hidden");
+    document.getElementById("app").classList.add("hidden");
+    document.getElementById('admin-nav-btn').classList.add('hidden');
+    document.getElementById('rec-nav-btn').classList.add('hidden');
+  }
+});
+
+function showApp(){document.getElementById("login-screen").classList.add("hidden");document.getElementById("app").classList.remove("hidden");renderHome();renderPractice();renderPhrasebook();}
+function saveProgress(){if(!S.user)return;db.ref("users/"+S.user.uid).set({completedLessons:S.completedLessons,lastActive:Date.now()});}
+
+document.querySelectorAll(".nav-btn[data-tab]").forEach(btn=>{btn.onclick=()=>{document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));btn.classList.add("active");document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));document.getElementById("screen-"+btn.dataset.tab).classList.add("active");if(btn.dataset.tab==="practice")renderPractice();if(btn.dataset.tab==="phrasebook")renderPhrasebook();if(btn.dataset.tab==="recorder")renderRecorderPanel(S.adminLessonId||1);};});
+document.getElementById("btn-close-lesson").onclick=()=>document.getElementById("lesson-overlay").classList.remove("active");
+
+function renderHome(){
+  const done=S.completedLessons.length,total=LESSONS_DEFAULT.length,pct=Math.round(done/total*100),nextId=LESSONS_DEFAULT.find(l=>!S.completedLessons.includes(l.id))?.id;
+  let h=`<div class="home-top"><div><div class="home-greeting">Learn <em>Kapampangan</em></div><div class="home-sub">One lesson at a time. No rush.</div></div><button class="btn-signout" onclick="doSignOut()">Sign out</button></div><div class="progress-summary"><div class="ps-label">Your Progress</div><div class="ps-nums">${done} <span>of ${total} lessons done</span></div><div class="prog-bar"><div class="prog-fill" style="width:${pct}%"></div></div></div>`;
+  [1,2,3].forEach(phase=>{
+    h+=`<div class="phase-label">Phase ${phase} &#8212; ${PHASES[phase]}</div><div class="lesson-cards">`;
+    LESSONS_DEFAULT.filter(l=>l.phase===phase).forEach(l=>{
+      const isDone=S.completedLessons.includes(l.id),isCurrent=l.id===nextId,isLocked=!isDone&&!isCurrent&&!S.completedLessons.includes(l.id-1)&&l.id!==1;
+      const cls="lesson-card "+(isDone?"completed":isCurrent?"current":isLocked?"locked":"available");
+      const badge=isDone?"&#10003;":isLocked?"&#128274;":"";
+      h+=`<div class="${cls}"${!isLocked?` onclick="openLesson(${l.id})"`:""}>
+        <div class="lesson-num">${l.id}</div>
+        <div class="lesson-info"><div class="lc-title">${l.title}</div><div class="lc-sub">${l.subtitle}</div></div>
+        <div class="lc-badge">${badge}</div></div>`;
+    });
+    h+=`</div>`;
+  });
+  document.getElementById("home-content").innerHTML=h;
+}
+
+function openLesson(id){
+  const l=getLesson(id);if(!l)return;
+  document.getElementById("overlay-title").textContent=`Lesson ${l.id}`;
+  document.getElementById("lesson-body").innerHTML=buildLesson(l);
+  document.getElementById("lesson-overlay").classList.add("active");
+  document.getElementById("lesson-overlay").scrollTop=0;
+  lfcCards=l.vocab.slice(0,6);lfcIdx=0;lfcFlipped=false;updateLfc();
+}
+
+function buildLesson(l){
+  const isDone=S.completedLessons.includes(l.id),pct=Math.round(l.id/LESSONS_DEFAULT.length*100);
+  let h=`<div class="lesson-head"><div class="lh-title">Lesson ${l.id} &#8212; <em>${l.title}</em></div><div class="lh-sub">${l.subtitle}</div><div class="lh-prog"><div class="lh-prog-label">Lesson ${l.id} of ${LESSONS_DEFAULT.length}</div><div class="lh-prog-bar"><div class="lh-prog-fill" style="width:${pct}%"></div></div></div></div>`;
+
+  if(l.showVowels){h+=`<div class="section-tag">Before you start</div><div class="l-card"><div class="l-card-title">How Kapampangan sounds</div><div class="l-card-body">Kapampangan vowels never change &#8212; each has exactly one sound, always. Once you have these five, you can read any word out loud with confidence.<br><br>The <strong>ng</strong> sound (like in <em>sing</em>) can also appear at the start of a word.</div><div class="vowel-grid"><div class="vowel-box"><span class="vl">A</span><span class="vh">Alpha</span></div><div class="vowel-box"><span class="vl">E</span><span class="vh">Echo</span></div><div class="vowel-box"><span class="vl">I</span><span class="vh">India</span></div><div class="vowel-box"><span class="vl">O</span><span class="vh">Oscar</span></div><div class="vowel-box"><span class="vl">U</span><span class="vh">oo in igloo</span></div></div></div>`;}
+
+  if(l.type==="family"){
+    h+=`<div class="section-tag">Family words</div><div class="l-card"><div class="l-card-title">The people in your world</div><div class="l-card-body">Tap any card to highlight it. Koya and Atchi depend on your relationship to the person.</div><div class="ft-grid"><div class="ft-row"><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Lolo / Apu</span><span class="ft-r">Grandfather</span></div><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Lola</span><span class="ft-r">Grandmother</span></div></div><div class="ft-conn">&#8595;</div><div class="ft-row"><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Bapang [name]</span><span class="ft-r">Uncle</span></div><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Tatang</span><span class="ft-r">Father</span></div><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Ima</span><span class="ft-r">Mother</span></div><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Darang [name]</span><span class="ft-r">Aunt</span></div></div><div class="ft-conn">&#8595;</div><div class="ft-row"><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Koya</span><span class="ft-r">Older brother</span></div><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Asawa</span><span class="ft-r">Husband / Wife</span></div><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Atchi</span><span class="ft-r">Older sister</span></div><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Wali</span><span class="ft-r">Younger sibling</span></div></div><div class="ft-conn">&#8595;</div><div class="ft-row"><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Anak</span><span class="ft-r">Child</span></div><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Pisan</span><span class="ft-r">Cousin</span></div><div class="ft-person" onclick="this.classList.toggle('hi')"><span class="ft-k">Paunakan</span><span class="ft-r">Niece / Nephew</span></div></div></div><div class="note-box">When using a title with a name, add -ng: Uncle Alvin = <em>Bapang Alvin</em>, Aunt Rona = <em>Darang Rona</em></div></div>`;
+    h+=`<div class="section-tag">Saying my</div><div class="l-card"><div class="l-card-title">Ku and Ke</div><div class="l-card-body">Add <strong>ku</strong> or <strong>ke</strong> after the noun &#8212; both mean my. It goes after the noun, not before it like English.</div><table class="poss-table"><tr><th>Kapampangan</th><th>Meaning</th><th>When</th></tr><tr><td>Asawa ku</td><td>My wife / husband</td><td>Introducing</td></tr><tr><td>Asawa ke</td><td>She / he is my wife</td><td>Answering who?</td></tr><tr><td>Ima ku</td><td>My mother</td><td>General</td></tr><tr><td>Anak ke</td><td>My child</td><td>Pointing out</td></tr></table></div>`;
+    h+=`<div class="section-tag">Introducing people</div><div class="l-card"><div class="l-card-title">How to point someone out</div><div class="l-card-body"><strong>Ini</strong> = this (beside you). <strong>Ya</strong> = she / he (across the room). Tap to reveal.</div><div class="tap-hint">&#8595; tap to reveal</div><div class="phrase-list">`;
+    (l.phrases||[]).forEach((p,pi)=>{const ak=`L${l.id}P${pi}`,ha=!!S.audioUrls[ak];h+=`<div class="phrase-item" onclick="this.classList.toggle('revealed')"><div class="phrase-top"><div class="phrase-top-left"><div class="pi-kamp">${p.kamp}</div><div class="pi-pronun">${p.pronun}</div></div>${ha?`<button class="btn-play-phrase" onclick="event.stopPropagation();playAudio('${ak}')">&#9654; Play</button>`:''}</div><div class="pi-eng">${p.eng}</div>${p.note?`<div class="pi-note">${p.note}</div>`:''}</div>`;});
+    h+=`</div></div>`;
+  }else{
+    h+=`<div class="section-tag">Core phrases</div><div class="l-card"><div class="l-card-title">The essentials</div><div class="l-card-body">Tap each phrase to reveal the meaning.</div><div class="tap-hint">&#8595; tap to reveal</div><div class="phrase-list">`;
+    l.vocab.forEach((v,vi)=>{const ak=`L${l.id}V${vi}`,ha=!!S.audioUrls[ak];h+=`<div class="phrase-item" onclick="this.classList.toggle('revealed')"><div class="phrase-top"><div class="phrase-top-left"><div class="pi-kamp">${v.kamp}</div><div class="pi-pronun">${v.pronun}</div></div>${ha?`<button class="btn-play-phrase" onclick="event.stopPropagation();playAudio('${ak}')">&#9654; Play</button>`:''}</div><div class="pi-eng">${v.eng}</div></div>`;});
+    h+=`</div></div>`;
+  }
+
+  h+=`<div class="section-tag">Key insight</div><div class="insight-box"><div class="ib-icon">${l.insight.icon}</div><div class="ib-title">${l.insight.title}</div><div class="ib-body">${l.insight.body}</div></div>`;
+  h+=`<div class="section-tag">Flashcards</div><div class="l-card"><div class="l-card-title">Quick drill</div><div class="l-card-body" style="margin-bottom:12px">Tap the card to flip. Say the English meaning before you reveal.</div><div class="fc-wrap"><div class="flashcard" id="lfc" onclick="flipLfc()"><div class="fc-face fc-front"><div class="fc-label">Kapampangan</div><div class="fc-word" id="lfc-kamp"></div><div class="fc-sub" id="lfc-pronun"></div></div><div class="fc-face fc-back"><div class="fc-label">English</div><div class="fc-word" id="lfc-eng"></div></div></div></div><div class="fc-nav"><button class="btn-fc" id="lfc-prev" onclick="prevLfc()" disabled>&#8592; Prev</button><span class="fc-counter" id="lfc-counter"></span><button class="btn-fc" id="lfc-next" onclick="nextLfc()">Next &#8594;</button></div></div>`;
+  h+=`<div class="section-tag">Practice</div><div class="l-card"><div class="l-card-title">Try this</div><div class="l-card-body" style="margin-bottom:12px">Read your lines out loud. Don't worry about being perfect &#8212; just say it.</div><div class="dialogue-wrap">`;
+  l.dialogue.forEach((d,di)=>{
+    const isYou=d.speaker==="you",av=d.speaker==="elder"?"&#128116;":isYou?"&#128100;":"&#128483;&#65039;";
+    const ak=`L${l.id}D${di}`,ha=!!S.audioUrls[ak];
+    h+=`<div class="d-line${isYou?" you":""}"><div class="d-avatar">${av}</div><div class="d-bubble"><div class="d-kamp">${d.kamp}${ha?` <button style="background:none;border:none;cursor:pointer;font-size:12px;opacity:0.7" onclick="playAudio('${ak}')">&#9654;</button>`:''}</div><div class="d-eng">${d.eng}</div></div></div>`;
+  });
+  h+=`</div></div><button class="btn-done${isDone?" done":""}" id="btn-done" onclick="markDone(${l.id})">${isDone?"Lesson complete &#10003;":`I'm done with Lesson ${l.id} &#10003;`}</button><div class="footer-note">No rush. Come back whenever you're ready.</div>`;
+  return h;
+}
+
+function updateLfc(){if(!lfcCards.length)return;const c=lfcCards[lfcIdx];document.getElementById("lfc-kamp").textContent=c.kamp;document.getElementById("lfc-pronun").textContent=c.pronun;document.getElementById("lfc-eng").textContent=c.eng;document.getElementById("lfc-counter").textContent=`${lfcIdx+1} / ${lfcCards.length}`;document.getElementById("lfc-prev").disabled=lfcIdx===0;document.getElementById("lfc-next").disabled=lfcIdx===lfcCards.length-1;lfcFlipped=false;document.getElementById("lfc")?.classList.remove("flipped");}
+function flipLfc(){lfcFlipped=!lfcFlipped;document.getElementById("lfc").classList.toggle("flipped",lfcFlipped);}
+function nextLfc(){if(lfcIdx<lfcCards.length-1){lfcIdx++;updateLfc();}}
+function prevLfc(){if(lfcIdx>0){lfcIdx--;updateLfc();}}
+function markDone(id){if(!S.completedLessons.includes(id)){S.completedLessons.push(id);saveProgress();renderHome();renderPractice();renderPhrasebook();}const btn=document.getElementById("btn-done");if(btn){btn.textContent="Lesson complete &#10003;";btn.classList.add("done");}}
+
+function renderPractice(){
+  const doneL=LESSONS_DEFAULT.filter(l=>S.completedLessons.includes(l.id)),allVocab=doneL.flatMap(l=>getLesson(l.id).vocab.map(v=>({...v,lessonId:l.id})));
+  if(!allVocab.length){document.getElementById("practice-content").innerHTML=`<div class="practice-header"><div class="practice-title">Flash <em>Cards</em></div><div class="practice-sub">Review everything you have learned</div></div><div class="practice-empty"><strong>Nothing to practise yet</strong>Complete Lesson 1 to unlock your first practice deck.</div>`;return;}
+  const deck=[...allVocab].sort(()=>Math.random()-0.5);S.fcDeck=deck;S.fcIdx=0;S.fcFlipped=false;const c=deck[0];
+  document.getElementById("practice-content").innerHTML=`<div class="practice-header"><div class="practice-title">Flash <em>Cards</em></div><div class="practice-sub">${deck.length} cards &#183; ${doneL.length} lesson${doneL.length>1?"s":""} completed</div></div><div class="fc-wrap"><div class="flashcard" id="pfc" onclick="flipPfc()"><div class="fc-face fc-front"><div class="fc-label">Kapampangan</div><div class="fc-word" id="pfc-k">${c.kamp}</div><div class="fc-sub" id="pfc-p">${c.pronun}</div></div><div class="fc-face fc-back"><div class="fc-label">English</div><div class="fc-word" id="pfc-e">${c.eng}</div></div></div></div><div class="fc-nav" style="margin-top:12px"><button class="btn-fc" id="pfc-prev" onclick="prevPfc()" disabled>&#8592; Prev</button><span class="fc-counter" id="pfc-counter">1 / ${deck.length}</span><button class="btn-fc" id="pfc-next" onclick="nextPfc()">Next &#8594;</button></div><div class="note-box" style="margin-top:18px">Say the English meaning before you flip. Each session reshuffles the deck.</div><button class="btn-done" onclick="renderPractice()" style="margin-top:12px;background:var(--bark)">&#128256; Shuffle again</button>`;
+}
+function updatePfc(){const c=S.fcDeck[S.fcIdx];document.getElementById("pfc-k").textContent=c.kamp;document.getElementById("pfc-p").textContent=c.pronun;document.getElementById("pfc-e").textContent=c.eng;document.getElementById("pfc-counter").textContent=`${S.fcIdx+1} / ${S.fcDeck.length}`;document.getElementById("pfc-prev").disabled=S.fcIdx===0;document.getElementById("pfc-next").disabled=S.fcIdx===S.fcDeck.length-1;S.fcFlipped=false;document.getElementById("pfc")?.classList.remove("flipped");}
+function flipPfc(){S.fcFlipped=!S.fcFlipped;document.getElementById("pfc").classList.toggle("flipped",S.fcFlipped);}
+function nextPfc(){if(S.fcIdx<S.fcDeck.length-1){S.fcIdx++;updatePfc();}}
+function prevPfc(){if(S.fcIdx>0){S.fcIdx--;updatePfc();}}
+
+function renderPhrasebook(q){
+  q=(q||"").toLowerCase().trim();const doneL=LESSONS_DEFAULT.filter(l=>S.completedLessons.includes(l.id));
+  if(!doneL.length){document.getElementById("phrasebook-content").innerHTML=`<div class="pb-empty">Complete your first lesson to start building your phrasebook.</div>`;return;}
+  let h="";doneL.forEach(l=>{const lesson=getLesson(l.id),items=lesson.vocab.filter(v=>!q||v.kamp.toLowerCase().includes(q)||v.eng.toLowerCase().includes(q));if(!items.length)return;h+=`<div class="pb-group"><div class="pb-group-title">Lesson ${l.id} &#8212; ${l.title}</div>`;items.forEach((v,vi)=>{const ak=`L${l.id}V${vi}`,ha=!!S.audioUrls[ak];h+=`<div class="pb-item"><span class="pb-kamp">${v.kamp}</span><div class="pb-right"><div class="pb-eng">${v.eng}${ha?` <button style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--clay)" onclick="playAudio('${ak}')">&#9654;</button>`:''}</div><div class="pb-pronun">${v.pronun}</div></div></div>`;});h+=`</div>`;});
+  document.getElementById("phrasebook-content").innerHTML=h||`<div class="pb-empty">No results for "${q}"</div>`;
+}
+document.getElementById("pb-search").oninput=e=>renderPhrasebook(e.target.value);
+
+function openAdmin(){renderAdminPanel(S.adminLessonId||1);document.getElementById("admin-overlay").classList.add("active");document.getElementById("admin-overlay").scrollTop=0;}
+function closeAdmin(){document.getElementById("admin-overlay").classList.remove("active");}
+
+function renderAdminPanel(lessonId){
+  S.adminLessonId=lessonId;const l=getLesson(lessonId);
+  let h=`<div style="margin-bottom:16px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Select Lesson</div><div class="admin-lesson-row">`;
+  LESSONS_DEFAULT.forEach(x=>{h+=`<button class="al-btn${x.id===lessonId?" active":""}" onclick="renderAdminPanel(${x.id})">${x.id}</button>`;});
+  h+=`</div></div><div style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:2px">${l.title}</div><div style="font-size:13px;color:var(--muted);margin-bottom:20px">${l.subtitle}</div>`;
+  h+=`<div class="admin-section"><div class="admin-sec-head"><span class="admin-sec-title">Vocabulary</span><button class="btn-add" onclick="adminAddVocab(${lessonId})">+ Add word</button></div>`;
+  l.vocab.forEach((v,i)=>{const ak=`L${lessonId}V${i}`,ha=!!S.audioUrls[ak];h+=`<div class="admin-item"><div class="admin-item-body"><div class="ai-kamp">${v.kamp}</div><div class="ai-sub">${v.pronun} &#183; ${v.eng}</div></div><div class="admin-item-btns"><button class="btn-ai-edit" onclick="adminEditVocab(${lessonId},${i})">&#9998;</button><button class="btn-ai-del" onclick="adminDelVocab(${lessonId},${i})">&#128465;</button><button class="btn-mic${ha?" has-audio":""}" onclick="openRecording('${ak}','${v.kamp.replace(/'/g,"\'")}','${v.eng.replace(/'/g,"\'")}')">&#127908;</button></div></div>`;});
+  h+=`</div><div class="admin-section"><div class="admin-sec-head"><span class="admin-sec-title">Dialogue</span><button class="btn-add" onclick="adminAddDialogue(${lessonId})">+ Add line</button></div>`;
+  l.dialogue.forEach((d,i)=>{const av=d.speaker==="elder"?"&#128116;":d.speaker==="you"?"&#128100;":"&#128483;",ak=`L${lessonId}D${i}`,ha=!!S.audioUrls[ak];h+=`<div class="admin-item"><div class="admin-item-body"><div class="ai-kamp">${av} ${d.kamp}</div><div class="ai-sub">${d.eng}</div></div><div class="admin-item-btns"><button class="btn-ai-edit" onclick="adminEditDialogue(${lessonId},${i})">&#9998;</button><button class="btn-ai-del" onclick="adminDelDialogue(${lessonId},${i})">&#128465;</button><button class="btn-mic${ha?" has-audio":""}" onclick="openRecording('${ak}','${d.kamp.replace(/'/g,"\'")}','${d.eng.replace(/'/g,"\'")}')">&#127908;</button></div></div>`;});
+  h+=`</div><div class="admin-section"><div class="admin-sec-head"><span class="admin-sec-title">Key Insight</span></div><div class="admin-insight-box"><div class="admin-insight-text"><strong>${l.insight.title}</strong><br>${l.insight.body}</div><button class="btn-edit-insight" onclick="adminEditInsight(${lessonId})">Edit insight</button></div></div>`;
+  h+=`<div class="admin-section"><div class="admin-sec-head"><span class="admin-sec-title">Recording Access</span></div><div style="font-size:13px;color:var(--muted);margin-bottom:12px">These people can record audio but cannot edit lesson content.</div>${S.recorders.map(e=>`<div class="admin-item"><div class="admin-item-body"><div class="ai-kamp" style="font-size:13px">${e}</div></div><div class="admin-item-btns"><button class="btn-ai-del" onclick="removeRecorder('${e}')">Remove</button></div></div>`).join("")}<div style="display:flex;gap:8px;margin-top:10px"><input class="modal-input" id="new-rec-email" type="email" placeholder="their.email@gmail.com" style="flex:1"><button class="btn-add" onclick="addRecorder(document.getElementById('new-rec-email').value.trim())">+ Add</button></div></div>`;
+  document.getElementById("admin-body").innerHTML=h;
+}
+
+function adminEditVocab(lid,i){const v=getLesson(lid).vocab[i];showModal("Edit Word",[{key:"kamp",label:"Kapampangan",value:v.kamp},{key:"pronun",label:"Pronunciation",value:v.pronun},{key:"eng",label:"English",value:v.eng}],()=>{const vocab=[...getLesson(lid).vocab];vocab[i]={kamp:mval("kamp"),pronun:mval("pronun"),eng:mval("eng")};saveVocab(lid,vocab);});}
+function adminAddVocab(lid){showModal("Add Word",[{key:"kamp",label:"Kapampangan",value:"",ph:"e.g. Salamat"},{key:"pronun",label:"Pronunciation",value:"",ph:"e.g. sah-LAH-mat"},{key:"eng",label:"English",value:"",ph:"e.g. Thank you"}],()=>{const vocab=[...getLesson(lid).vocab,{kamp:mval("kamp"),pronun:mval("pronun"),eng:mval("eng")}];saveVocab(lid,vocab);});}
+function adminDelVocab(lid,i){if(!confirm("Delete this word?"))return;const vocab=[...getLesson(lid).vocab];vocab.splice(i,1);saveVocab(lid,vocab);}
+function saveVocab(lid,vocab){db.ref(`lessonData/${lid}/vocab`).set(vocab);if(!S.lessonOverrides[lid])S.lessonOverrides[lid]={};S.lessonOverrides[lid].vocab=vocab;renderAdminPanel(lid);}
+function adminEditDialogue(lid,i){const d=getLesson(lid).dialogue[i];modalSpeaker=d.speaker;showModal("Edit Line",[{key:"kamp",label:"Kapampangan",value:d.kamp},{key:"eng",label:"English",value:d.eng},{key:"speaker",label:"Speaker",type:"speaker"}],()=>{const dialogue=[...getLesson(lid).dialogue];dialogue[i]={speaker:modalSpeaker,kamp:mval("kamp"),eng:mval("eng")};saveDialogue(lid,dialogue);});}
+function adminAddDialogue(lid){modalSpeaker="other";showModal("Add Line",[{key:"kamp",label:"Kapampangan",value:"",ph:"e.g. Mangan ta na!"},{key:"eng",label:"English",value:"",ph:"e.g. Let us eat!"},{key:"speaker",label:"Speaker",type:"speaker"}],()=>{const dialogue=[...getLesson(lid).dialogue,{speaker:modalSpeaker,kamp:mval("kamp"),eng:mval("eng")}];saveDialogue(lid,dialogue);});}
+function adminDelDialogue(lid,i){if(!confirm("Delete this line?"))return;const dialogue=[...getLesson(lid).dialogue];dialogue.splice(i,1);saveDialogue(lid,dialogue);}
+function saveDialogue(lid,dialogue){db.ref(`lessonData/${lid}/dialogue`).set(dialogue);if(!S.lessonOverrides[lid])S.lessonOverrides[lid]={};S.lessonOverrides[lid].dialogue=dialogue;renderAdminPanel(lid);}
+function adminEditInsight(lid){const ins=getLesson(lid).insight;showModal("Edit Insight",[{key:"title",label:"Title",value:ins.title},{key:"body",label:"Body text",value:ins.body,type:"textarea"}],()=>{const insight={...getLesson(lid).insight,title:mval("title"),body:mval("body")};db.ref(`lessonData/${lid}/insight`).set(insight);if(!S.lessonOverrides[lid])S.lessonOverrides[lid]={};S.lessonOverrides[lid].insight=insight;renderAdminPanel(lid);});}
+
+function showModal(title,fields,onSave){
+  document.getElementById("modal-title").textContent=title;modalSaveFn=onSave;let h="";
+  fields.forEach(f=>{if(f.type==="speaker"){h+=`<div class="modal-field"><label class="modal-label">Speaker</label><div class="speaker-row"><button class="sp-opt${modalSpeaker==="other"?" active":""}" onclick="setSpeaker('other',this)">&#128483; Other</button><button class="sp-opt${modalSpeaker==="you"?" active":""}" onclick="setSpeaker('you',this)">&#128100; You</button><button class="sp-opt${modalSpeaker==="elder"?" active":""}" onclick="setSpeaker('elder',this)">&#128116; Elder</button></div></div>`;}else if(f.type==="textarea"){h+=`<div class="modal-field"><label class="modal-label">${f.label}</label><textarea class="modal-textarea" id="mf-${f.key}">${f.value||""}</textarea></div>`;}else{h+=`<div class="modal-field"><label class="modal-label">${f.label}</label><input class="modal-input" id="mf-${f.key}" type="text" value="${(f.value||"").replace(/"/g,"&quot;")}" placeholder="${f.ph||""}"></div>`;}});
+  document.getElementById("modal-fields").innerHTML=h;document.getElementById("edit-modal").classList.remove("hidden");setTimeout(()=>document.querySelector(".modal-input,.modal-textarea")?.focus(),100);
+}
+function setSpeaker(sp,btn){modalSpeaker=sp;document.querySelectorAll(".sp-opt").forEach(b=>b.classList.remove("active"));btn.classList.add("active");}
+function mval(key){const el=document.getElementById("mf-"+key);return el?el.value.trim():"";}
+function closeModal(){document.getElementById("edit-modal").classList.add("hidden");modalSaveFn=null;}
+function saveModal(){if(modalSaveFn)modalSaveFn();closeModal();}
+
+// ================================================================
+// AUDIO PLAYBACK
+// ================================================================
+function playAudio(key){
+  const url=S.audioUrls[key];
+  if(!url)return;
+  const a=new Audio(url);
+  a.play().catch(()=>{});
+}
+
+// ================================================================
+// AUDIO RECORDING (stores as base64 in Firebase Database - no Storage needed)
+// ================================================================
+function openRecording(key,word,eng){
+  recState={key,word,eng,phase:S.audioUrls[key]?'hasExisting':'idle',stream:null,recorder:null,chunks:[],blob:null,previewUrl:S.audioUrls[key]||null,timer:null,secs:0};
+  renderRecording();
+  document.getElementById('rec-overlay').classList.add('active');
+}
+
+function renderRecording(){
+  const{phase,word,eng,previewUrl,key}=recState;
+  let h=`<div class="rec-lbl">Record audio</div><div class="rec-word">${word}</div><div class="rec-eng">${eng}</div>`;
+  if(phase==='idle'){
+    h+=`<div class="rec-status">No recording yet</div><button class="rec-circle" onclick="beginRecording()">&#127908;</button><div class="rec-btns"><button class="btn-rec btn-rec-cancel" onclick="closeRecording()">Done</button></div>`;
+  }else if(phase==='hasExisting'){
+    h+=`<audio class="rec-audio" src="${previewUrl}" controls></audio><div class="rec-status">Current recording</div><button class="rec-circle" onclick="beginRecording()">&#127908;</button><div class="rec-btns"><button class="btn-rec btn-rec-cancel" onclick="closeRecording()">Done</button></div><button class="btn-rec-del" onclick="deleteRecording()">Delete recording</button>`;
+  }else if(phase==='recording'){
+    h+=`<button class="rec-circle pulsing" onclick="stopRecording()">&#9632;</button><div class="rec-status" id="rec-timer">Recording... 0:00</div><div class="rec-btns"><button class="btn-rec btn-rec-cancel" onclick="cancelRecording()">Cancel</button></div>`;
+  }else if(phase==='preview'){
+    h+=`<audio class="rec-audio" src="${previewUrl}" controls></audio><div class="rec-status">Listen before saving</div><div class="rec-btns"><button class="btn-rec btn-rec-cancel" onclick="recState.phase='idle';recState.blob=null;renderRecording()">&#127908; Re-record</button><button class="btn-rec btn-rec-save" onclick="saveRecording()">Save &#10003;</button></div><button class="btn-rec-del" onclick="closeRecording()">Cancel</button>`;
+  }else if(phase==='saving'){
+    h+=`<div class="rec-circle" style="background:var(--bark);cursor:default;font-size:20px">&#8987;</div><div class="rec-status">Saving...</div>`;
+  }
+  document.getElementById('rec-content').innerHTML=h;
+}
+
+async function beginRecording(){
+  try{
+    recState.stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recState.chunks=[];
+    recState.recorder=new MediaRecorder(recState.stream);
+    recState.recorder.ondataavailable=e=>{if(e.data.size>0)recState.chunks.push(e.data);};
+    recState.recorder.onstop=()=>{
+      recState.blob=new Blob(recState.chunks,{type:recState.recorder.mimeType||'audio/webm'});
+      recState.previewUrl=URL.createObjectURL(recState.blob);
+      recState.phase='preview';
+      clearInterval(recState.timer);
+      recState.stream.getTracks().forEach(t=>t.stop());
+      renderRecording();
+    };
+    recState.recorder.start();
+    recState.secs=0;recState.phase='recording';
+    renderRecording();
+    recState.timer=setInterval(()=>{
+      recState.secs++;
+      const m=Math.floor(recState.secs/60),s=recState.secs%60;
+      const el=document.getElementById('rec-timer');
+      if(el)el.textContent=`Recording... ${m}:${s.toString().padStart(2,'0')}`;
+    },1000);
+  }catch(err){alert('Could not access microphone. Please allow microphone access and try again.');}
+}
+
+function stopRecording(){if(recState.recorder&&recState.recorder.state==='recording')recState.recorder.stop();}
+
+function cancelRecording(){
+  if(recState.recorder&&recState.recorder.state==='recording')recState.recorder.stop();
+  if(recState.stream)recState.stream.getTracks().forEach(t=>t.stop());
+  clearInterval(recState.timer);
+  closeRecording();
+}
+
+async function saveRecording(){
+  if(!recState.blob)return;
+  recState.phase='saving';renderRecording();
+  const key=recState.key;
+  const match=key.match(/L(\d+)([VDP])(\d+)/);
+  if(!match){alert('Key error');return;}
+  const[,lid,type,idx]=match;
+  const typeMap={V:'vocab',D:'dialogue',P:'phrases'};
+  try{
+    // Convert blob to base64 data URL and store directly in Firebase Database
+    const dataUrl=await new Promise((res,rej)=>{
+      const reader=new FileReader();
+      reader.onload=e=>res(e.target.result);
+      reader.onerror=rej;
+      reader.readAsDataURL(recState.blob);
+    });
+    await db.ref(`lessonAudio/${lid}/${typeMap[type]}/${idx}`).set(dataUrl);
+    S.audioUrls[key]=dataUrl;
+    recState.previewUrl=dataUrl;recState.blob=null;recState.phase='hasExisting';
+    renderRecording();
+    renderAdminPanel(S.adminLessonId);
+  }catch(err){alert('Save failed: '+err.message);recState.phase='preview';renderRecording();}
+}
+
+async function deleteRecording(){
+  if(!confirm('Delete this recording?'))return;
+  const key=recState.key;
+  const match=key.match(/L(\d+)([VDP])(\d+)/);
+  if(!match)return;
+  const[,lid,type,idx]=match;
+  const typeMap={V:'vocab',D:'dialogue',P:'phrases'};
+  await db.ref(`lessonAudio/${lid}/${typeMap[type]}/${idx}`).remove();
+  delete S.audioUrls[key];
+  recState.phase='idle';recState.previewUrl=null;
+  renderRecording();
+  renderAdminPanel(S.adminLessonId);
+}
+
+function closeRecording(){document.getElementById('rec-overlay').classList.remove('active');}
+
+// ================================================================
+// RECORDER PANEL
+// ================================================================
+function renderRecorderPanel(lessonId){
+  S.adminLessonId=lessonId||1;
+  const l=getLesson(S.adminLessonId);
+  let h=`<div style="padding:16px 16px 40px">
+    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px">Select Lesson</div>
+    <div class="admin-lesson-row">`;
+  LESSONS_DEFAULT.forEach(x=>{h+=`<button class="al-btn${x.id===S.adminLessonId?" active":""}" onclick="renderRecorderPanel(${x.id})">${x.id}</button>`;});
+  h+=`</div><div style="font-family:'Playfair Display',serif;font-size:20px;margin-bottom:2px">${l.title}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px">${l.subtitle}</div>
+    <div class="admin-section"><div class="admin-sec-head"><span class="admin-sec-title">Vocabulary</span></div>`;
+  l.vocab.forEach((v,i)=>{const ak=`L${S.adminLessonId}V${i}`,ha=!!S.audioUrls[ak];h+=`<div class="admin-item"><div class="admin-item-body"><div class="ai-kamp">${v.kamp}</div><div class="ai-sub">${v.pronun} &#183; ${v.eng}</div></div><div class="admin-item-btns"><button class="btn-mic${ha?" has-audio":""}" onclick="openRecording('${ak}','${v.kamp.replace(/'/g,"\'")}','${v.eng.replace(/'/g,"\'")}')">&#127908;</button></div></div>`;});
+  h+=`</div><div class="admin-section"><div class="admin-sec-head"><span class="admin-sec-title">Dialogue</span></div>`;
+  l.dialogue.forEach((d,i)=>{const av=d.speaker==="elder"?"&#128116;":d.speaker==="you"?"&#128100;":"&#128483;",ak=`L${S.adminLessonId}D${i}`,ha=!!S.audioUrls[ak];h+=`<div class="admin-item"><div class="admin-item-body"><div class="ai-kamp">${av} ${d.kamp}</div><div class="ai-sub">${d.eng}</div></div><div class="admin-item-btns"><button class="btn-mic${ha?" has-audio":""}" onclick="openRecording('${ak}','${d.kamp.replace(/'/g,"\'")}','${d.eng.replace(/'/g,"\'")}')">&#127908;</button></div></div>`;});
+  h+=`</div></div>`;
+  document.getElementById("recorder-content").innerHTML=h;
+}
+
+// ================================================================
+// PERMISSION MANAGEMENT
+// ================================================================
+function emailKey(e){return e.replace(/\./g,',').replace(/@/g,'_at_');}
+
+function addRecorder(email){
+  if(!email||!email.includes('@')){alert('Please enter a valid email address.');return;}
+  db.ref(`recorders/${emailKey(email)}`).set(true).then(()=>{
+    if(!S.recorders.includes(email))S.recorders.push(email);
+    renderAdminPanel(S.adminLessonId);
+    const inp=document.getElementById('new-rec-email');if(inp)inp.value='';
+  }).catch(err=>alert('Failed to add: '+err.message));
+}
+
+function removeRecorder(email){
+  if(!confirm(`Remove recording access for ${email}?`))return;
+  db.ref(`recorders/${emailKey(email)}`).remove().then(()=>{
+    S.recorders=S.recorders.filter(e=>e!==email);
+    renderAdminPanel(S.adminLessonId);
+  }).catch(err=>alert('Failed to remove: '+err.message));
+}
+
+</script>
+</body>
+</html>
